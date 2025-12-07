@@ -67,18 +67,6 @@ V_func = sp.lambdify(ARGS, V, "numpy")
 # ---------------------------------------------------------------------------
 
 def gradV_numeric(x: Sequence[float], params: Sequence[float]) -> np.ndarray:
-    """
-    Numeric gradient ∇V at (phi1, phi2) for given parameters.
-
-    Parameters
-    ----------
-    x : (phi1, phi2)
-    params : (mu1, mu2, lam1, lam2, lam12, kappa)
-
-    Returns
-    -------
-    numpy array shape (2,)
-    """
     phi1_val, phi2_val = x
     return np.array(
         gradV_func(phi1_val, phi2_val, *params),
@@ -110,22 +98,6 @@ def find_critical_points(
     guesses: Sequence[Tuple[float, float]],
     tol: float = 1e-8,
 ) -> List[Tuple[float, float]]:
-    """
-    Find critical points (∇V = 0) for given parameters and initial guesses.
-
-    Parameters
-    ----------
-    params : tuple
-        (mu1, mu2, lam1, lam2, lam12, kappa)
-    guesses : list of (phi1, phi2)
-        Initial guesses for the root finder.
-    tol : float
-        Rounding tolerance for deduplicating solutions.
-
-    Returns
-    -------
-    list of (phi1, phi2) critical points (deduplicated).
-    """
     crit_points: List[Tuple[float, float]] = []
 
     for guess in guesses:
@@ -147,23 +119,6 @@ def classify_point(
     point: Tuple[float, float],
     params: Sequence[float],
 ) -> Tuple[str, np.ndarray, float]:
-    """
-    Classify a critical point by the eigenvalues of the Hessian.
-
-    Parameters
-    ----------
-    point : (phi1, phi2)
-    params : (mu1, mu2, lam1, lam2, lam12, kappa)
-
-    Returns
-    -------
-    kind : str
-        "minimum", "maximum", or "saddle"
-    eigvals : np.ndarray shape (2,)
-        Eigenvalues of the Hessian at the point.
-    V_val : float
-        Potential value at the point.
-    """
     H_num = H_numeric(point, params)
     eigvals = np.linalg.eigvals(H_num)
 
@@ -184,7 +139,7 @@ def classify_point(
 
 if __name__ == "__main__":
     # Example parameter choice:
-    params_example = (mu1, mu2, lam1, lam2, lam12, kappa) = (1.0, 1.2, 0.5, 0.6, 0.2, 0.1)
+    params_example = (mu1, mu2, lam1, lam2, lam12, kappa) = (1.0, 1.2, 0.5, 0.6, 0.2, 0)
 
 
     v1 = mu1/np.sqrt(lam1)
