@@ -95,10 +95,14 @@ def H_numeric(x: Sequence[float], params: Sequence[float]) -> np.ndarray:
 
 def find_critical_points(
     params: Sequence[float],
-    guesses: Sequence[Tuple[float, float]],
+    guesses: Sequence[Tuple[float, float]] = None,
     tol: float = 1e-8,
 ) -> List[Tuple[float, float]]:
     crit_points: List[Tuple[float, float]] = []
+    if guesses is None:
+        guesses = build_guesses(params)
+    else:
+        guesses = np.array(guesses, dtype=float)
 
     for guess in guesses:
         sol = root(lambda x: gradV_numeric(x, params), x0=np.array(guess, dtype=float))
@@ -130,7 +134,61 @@ def classify_point(
         kind = "saddle"
 
     V_val = V_numeric(point, params)
+    print(kind, eigvals, V_val)
     return kind, eigvals, V_val
+
+
+def build_guesses(params):
+    mu1, mu2, lam1, lam2, lam12, kappa = params
+
+    v1 = mu1 / np.sqrt(lam1)
+    v2 = mu2 / np.sqrt(lam2)
+
+    guesses = [
+        (0.0, 0.0),
+        (v1, 0.0),
+        (-v1, 0.0),
+        (0.0, v2),
+        (0.0, -v2),
+        (v1, v2),
+        (-v1, v2),
+        (v1, -v2),
+        (-v1, -v2),
+    ]
+    return guesses
+
+
+
+def find_vacua_from_potential(
+    params: Sequence[float],
+    guesses: Sequence[Tuple[float, float]] = None,
+) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+    if guesses is None:
+        guesses = build_guesses(params)
+    else:
+        guesses = np.array(guesses, dtype=float)
+
+    crit_points = find_critical_points(params, guesses)
+
+    minima: List[Tuple[Tuple[float, float], float]] = []
+    for pt in crit_points:
+        kind, hess, Vval = classify_point(pt, params)
+        if kind == "minimum":
+            minima.append((pt, Vval))
+
+    if len(minima) < 2:
+        raise RuntimeError(
+            "Expected at least two local minima (false and true vacua), "
+            f"but found {len(minima)}."
+        )
+
+    # Sort minima by potential value: lowest is TV, highest is FV
+    print(minima)
+    minima.sort(key=lambda item: item[1])
+    tv_point, tv_V = minima[0]
+    fv_point, fv_V = minima[-1]
+
+    return fv_point, fv_V, tv_point, tv_V
 
 
 # ---------------------------------------------------------------------------

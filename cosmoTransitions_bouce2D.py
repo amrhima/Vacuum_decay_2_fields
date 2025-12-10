@@ -3,202 +3,44 @@ import matplotlib.pyplot as plt
 from scipy import optimize
 
 from cosmoTransitions import pathDeformation as pd
+from potential2D import V_numeric, find_critical_points, find_vacua_from_potential, V_func, gradV_func
 
 
 # ----------------------------------------------------------------------
-# 1. Parameters and potential
-# ----------------------------------------------------------------------
-
-def build_parameters():
-    params = (1.0, 1.2, 0.5, 0.6, 0.2, 0.3)
-    return params
-
-
-def build_guesses(params):
-    """
-    Construct a set of initial guesses for the vacuum finder based on
-    the single-field vevs of the quartic pieces.
-    """
-    mu1, mu2, lam1, lam2, lam12, kappa = params
-
-    v1 = mu1 / np.sqrt(lam1)
-    v2 = mu2 / np.sqrt(lam2)
-
-    guesses = [
-        (0.0, 0.0),
-        (v1, 0.0),
-        (-v1, 0.0),
-        (0.0, v2),
-        (0.0, -v2),
-        (v1, v2),
-        (-v1, v2),
-        (v1, -v2),
-        (-v1, -v2),
-    ]
-    return guesses
-
-
-class TwoFieldPotential:
-    def __init__(self, params=None):
-        if params is None:
-            params = build_parameters()
-        self.params = tuple(params)
-        self.mu1, self.mu2, self.lam1, self.lam2, self.lam12, self.kappa = self.params
-
-    # Potential value
-    def V(self, X):
-        X = np.asanyarray(X)
-        phi1, phi2 = X[..., 0], X[..., 1]
-        mu1, mu2, lam1, lam2, lam12, kappa = self.params
-        V = (
-            -0.5 * mu1**2 * phi1**2
-            + 0.25 * lam1 * phi1**4
-            - 0.5 * mu2**2 * phi2**2
-            + 0.25 * lam2 * phi2**4
-            + lam12 * phi1**2 * phi2**2
-            + kappa * phi1**3
-        )
-        return V
-
-    # Gradient (same shape as X)
-    def dV(self, X):
-        X = np.asanyarray(X)
-        phi1, phi2 = X[..., 0], X[..., 1]
-        mu1, mu2, lam1, lam2, lam12, kappa = self.params
-
-        dphi1 = (
-            -mu1**2 * phi1
-            + lam1 * phi1**3
-            + 2.0 * lam12 * phi1 * phi2**2
-            + 3.0 * kappa * phi1**2
-        )
-        dphi2 = (
-            -mu2**2 * phi2
-            + lam2 * phi2**3
-            + 2.0 * lam12 * phi1**2 * phi2
-        )
-
-        grad = np.empty_like(X)
-        grad[..., 0] = dphi1
-        grad[..., 1] = dphi2
-        return grad
-
-
-# ----------------------------------------------------------------------
-# 2. Zero-temperature vacua finder (very simple)
-# ----------------------------------------------------------------------
-
-def numerical_hessian(pot, x, eps=1e-4):
-    x = np.asarray(x, dtype=float)
-    H = np.zeros((2, 2), dtype=float)
-    f0 = float(pot.V(x))
-
-    for i in range(2):
-        dx_i = np.zeros_like(x)
-        dx_i[i] = eps
-        f_ip = float(pot.V(x + dx_i))
-        f_im = float(pot.V(x - dx_i))
-        H[i, i] = (f_ip - 2.0 * f0 + f_im) / eps**2
-
-    # off-diagonal
-    dx0 = np.array([eps, 0.0])
-    dx1 = np.array([0.0, eps])
-    f_pp = float(pot.V(x + dx0 + dx1))
-    f_pm = float(pot.V(x + dx0 - dx1))
-    f_mp = float(pot.V(x - dx0 + dx1))
-    f_mm = float(pot.V(x - dx0 - dx1))
-    H[0, 1] = H[1, 0] = (f_pp - f_pm - f_mp + f_mm) / (4.0 * eps**2)
-
-    return H
-
-
-def classify_point(pot, x, tol=1e-6):
-    H = numerical_hessian(pot, x)
-    eigs = np.linalg.eigvals(H)
-    Vx = float(pot.V(x))
-
-    if np.all(eigs > tol):
-        tp = "minimum"
-    elif np.all(eigs < -tol):
-        tp = "maximum"
-    else:
-        tp = "saddle"
-    return tp, eigs, Vx
-
-
-def find_stationary_points(pot, guesses, tol=1e-6):
-    pts = []
-
-    for g in guesses:
-        x0 = np.array(g, dtype=float)
-
-        # Minimization in R^2
-        res = optimize.minimize(
-            fun=lambda x: float(pot.V(x)),
-            x0=x0,
-            jac=lambda x: np.asarray(pot.dV(x)),
-            method="BFGS",
-            tol=1e-10,
-        )
-
-        if not res.success:
-            continue
-
-        x = res.x
-
-        # Deduplicate: skip if very close to an existing point
-        if any(np.linalg.norm(x - p["x"]) < 1e-3 for p in pts):
-            continue
-
-        tp, eigs, Vx = classify_point(pot, x)
-        pts.append({"x": x, "V": Vx, "type": tp, "eigs": eigs})
-
-    return pts
-
-
-def pick_true_and_false_vacua(points):
-    mins = [p for p in points if p["type"] == "minimum"]
-    if len(mins) < 2:
-        raise ValueError("Need at least two distinct minima to define FV and TV.")
-
-    mins_sorted = sorted(mins, key=lambda p: p["V"])
-    tv = mins_sorted[0]
-    fv = mins_sorted[1]
-    return tv, fv
-
-
-# ----------------------------------------------------------------------
-# 3. CosmoTransitions tunneling: fullTunneling
+# CosmoTransitions tunneling: fullTunneling
 # ----------------------------------------------------------------------
 
 def run_cosmotransitions_bounce():
-    params = build_parameters()
-    pot = TwoFieldPotential(params=params)
+    params = (1.0, 1.2, 0.5, 0.6, 0.2, 0.3)
 
-    # 1) Find stationary points from your guesses
-    guesses = build_guesses(params)
-    points = find_stationary_points(pot, guesses)
 
-    print("=== Stationary points found ===")
-    for p in points:
-        x1, x2 = p["x"]
-        print(
-            f"  type={p['type']:8s}  "
-            f"phi1={x1: .4f}, phi2={x2: .4f},  V={p['V']: .6f},  eigs={p['eigs']}"
-        )
+    # 1) Identify true and false vacuum
+    fv, fv_V, tv,tv_V  = find_vacua_from_potential(params=params)
+    points = [{'x': tv}, {'x': fv}]
+    def V(x):
+        x = np.asarray(x)
+        phi1 = x[..., 0]
+        phi2 = x[..., 1]
+        return V_func(phi1, phi2, *params)  # broadcasts over array
 
-    # 2) Identify true and false vacuum
-    tv, fv = pick_true_and_false_vacua(points)
+    def grad_V(x):
+        x = np.asarray(x)
+        phi1 = x[..., 0]
+        phi2 = x[..., 1]
+        dphi1, dphi2 = gradV_func(phi1, phi2, *params)
+        return np.stack([dphi1, dphi2], axis=-1)  # shape like x
+        
     print("\n=== Selected vacua ===")
-    print(f"  True vacuum : phi = {tv['x']},  V = {tv['V']}")
-    print(f"  False vacuum: phi = {fv['x']},  V = {fv['V']}")
+    print(f"  True vacuum : phi = {tv[0]},  V = {tv_V}")
+    print(f"  False vacuum: phi = {fv[0]},  V = {fv_V}")
 
-    # 3) Initial path: straight line from TV (first) to FV (last)
-    path_pts = np.vstack([tv["x"], fv["x"]])
+    # 2) Initial path: straight line from TV (first) to FV (last)
+    path_pts = np.vstack([tv, fv])
 
-    # 4) Run CosmoTransitions tunneling
+    print(path_pts)
+    # 3) Run CosmoTransitions tunneling
     print("\nRunning CosmoTransitions pathDeformation.fullTunneling ...")
-    Y = pd.fullTunneling(path_pts, pot.V, pot.dV, verbose=True)
+    Y = pd.fullTunneling(path_pts, V, grad_V, verbose=True)
 
     profile1D = Y.profile1D
     Phi_path = Y.Phi          # shape (n_points, 2)
@@ -230,7 +72,7 @@ def run_cosmotransitions_bounce():
     Ygrid = np.linspace(y_min, y_max, ny)
     XX, YY = np.meshgrid(X, Ygrid)
     XY = np.stack([XX, YY], axis=-1)
-    ZZ = pot.V(XY)
+    ZZ = V(XY)
 
     cs = ax.contour(
         XX,
@@ -241,8 +83,8 @@ def run_cosmotransitions_bounce():
     )
     ax.clabel(cs, inline=True, fontsize=6)
     ax.plot(Phi_path[:, 0], Phi_path[:, 1], "k-", lw=2, label="bounce path")
-    ax.plot(tv["x"][0], tv["x"][1], "ro", label="TV")
-    ax.plot(fv["x"][0], fv["x"][1], "bo", label="FV")
+    ax.plot(tv[0], tv[1], "ro", label="TV")
+    ax.plot(fv[0], fv[1], "bo", label="FV")
     ax.set_xlabel(r"$\phi_1$")
     ax.set_ylabel(r"$\phi_2$")
     ax.set_title("Field-space potential and tunneling path")
@@ -250,16 +92,37 @@ def run_cosmotransitions_bounce():
 
     # (b) Radial profiles phi1(r), phi2(r)
     ax2 = axes[1]
-    R = profile1D.R
-    phi1_r = Phi_path[:, 0]
-    phi2_r = Phi_path[:, 1]
 
+    # 1. Radial grid
+    R = profile1D.R          # shape (N_rho,)
+
+    # 2. Path parameter along Phi_path
+    N_path = Phi_path.shape[0]
+    s_path = np.linspace(0.0, 1.0, N_path)   # parameter along the field-space path
+
+    # 3. Coordinate along the path from the 1D instanton
+    lam = profile1D.Phi      # shape (N_rho,) – field along the path (up to scaling)
+
+    # Rescale lam to [0,1] so it matches the s_path range
+    lam_min, lam_max = lam.min(), lam.max()
+    if lam_max == lam_min:
+        # trivial path; avoid division by zero
+        s_r = np.zeros_like(lam)
+    else:
+        s_r = (lam - lam_min) / (lam_max - lam_min)
+
+    # 4. Interpolate the 2D fields along the path
+    phi1_r = np.interp(s_r, s_path, Phi_path[:, 0])
+    phi2_r = np.interp(s_r, s_path, Phi_path[:, 1])
+
+    # 5. Plot
     ax2.plot(R, phi1_r, label=r"$\phi_1(\rho)$")
     ax2.plot(R, phi2_r, label=r"$\phi_2(\rho)$")
     ax2.set_xlabel(r"$\rho$")
-    ax2.set_ylabel(r"field values")
+    ax2.set_ylabel("field values")
     ax2.set_title("Bounce profiles")
     ax2.legend(loc="best")
+
 
     plt.tight_layout()
     plt.show()

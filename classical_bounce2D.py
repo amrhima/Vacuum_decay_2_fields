@@ -5,7 +5,7 @@ from typing import Callable, Sequence, Tuple, List, Optional
 from scipy.optimize import root
 
 # Import vacuum-finding utilities and full gradient from potential.py
-from potential import find_critical_points, classify_point, gradV_numeric
+from potential2D import gradV_numeric, find_vacua_from_potential
 
 @dataclass
 class BounceSolution2D:
@@ -97,33 +97,6 @@ def _integrate_profile_2d(
 
     return rho, phi_vals, pi_vals, action
 
-
-def _find_vacua_from_potential(
-    params: Sequence[float],
-    guesses: Sequence[Tuple[float, ...]],
-) -> Tuple[Tuple[float, float], Tuple[float, float]]:
-    crit_points = find_critical_points(params, guesses)
-
-    minima: List[Tuple[Tuple[float, float], float]] = []
-    for pt in crit_points:
-        kind, hess, Vval = classify_point(pt, params)
-        if kind == "minimum":
-            minima.append((pt, Vval))
-
-    if len(minima) < 2:
-        raise RuntimeError(
-            "Expected at least two local minima (false and true vacua), "
-            f"but found {len(minima)}."
-        )
-
-    # Sort minima by potential value: lowest is TV, highest is FV
-    minima.sort(key=lambda item: item[1])
-    tv_point, tv_V = minima[0]
-    fv_point, fv_V = minima[-1]
-
-    return fv_point, tv_point
-
-
 def _end_value_2d(
     a: Sequence[float],
     fv_point: Sequence[float],
@@ -138,7 +111,6 @@ def _end_value_2d(
 
 def shoot_bounce_2d(
     params: Sequence[float],
-    guesses: Sequence[Tuple[float, ...]],
     rho_max: float,
     n_steps: int = 2000,
     a0: Optional[Sequence[float]] = None,
@@ -146,7 +118,7 @@ def shoot_bounce_2d(
     max_iter: int = 50,
 ) -> BounceSolution2D:
     # Locate false and true vacua in the full 2D potential
-    fv_point, tv_point = _find_vacua_from_potential(params, guesses)
+    fv_point, fv_V, tv_point, tv_V = find_vacua_from_potential(params)
 
     fv = np.asarray(fv_point, dtype=float)
     tv = np.asarray(tv_point, dtype=float)

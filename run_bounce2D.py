@@ -1,66 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from classical_bounce import shoot_bounce_2d
-from potential import find_critical_points, classify_point, V_numeric
-
-
-def build_parameters():
-    # (mu1, mu2, lam1, lam2, lam12, kappa)
-    # Slight tilt in phi1 via kappa to break degeneracy.
-    params = (1.0, 1.2, 0.5, 0.6, 0.2, 0.3)
-    return params
-
-
-def build_guesses(params):
-    mu1, mu2, lam1, lam2, lam12, kappa = params
-
-    v1 = mu1 / np.sqrt(lam1)
-    v2 = mu2 / np.sqrt(lam2)
-
-    guesses = [
-        (0.0, 0.0),
-        (v1, 0.0),
-        (-v1, 0.0),
-        (0.0, v2),
-        (0.0, -v2),
-        (v1, v2),
-        (-v1, v2),
-        (v1, -v2),
-        (-v1, -v2),
-    ]
-    return guesses
-
-
-def locate_vacua(params, guesses):
-    crit_points = find_critical_points(params, guesses)
-
-    minima = []
-    for pt in crit_points:
-        kind, _, Vval = classify_point(pt, params)
-        if kind == "minimum":
-            minima.append((pt, Vval))
-
-    if len(minima) < 2:
-        raise RuntimeError(
-            f"Expected at least two local minima, found {len(minima)}. "
-            f"Try adjusting parameters or initial guesses."
-        )
-
-    minima.sort(key=lambda item: item[1])
-    tv_point, tv_V = minima[0]
-    fv_point, fv_V = minima[-1]
-
-    return fv_point, tv_point, fv_V, tv_V
+from classical_bounce2D import shoot_bounce_2d
+from potential2D import find_critical_points, V_numeric, find_vacua_from_potential
 
 
 def main():
-    # 1. Set up model parameters and guesses for critical points
-    params = build_parameters()
-    guesses = build_guesses(params)
+    # 1. Set up model parameters
+    params = (1.0, 1.2, 0.5, 0.6, 0.2, 0.3)
 
     # 2. Locate vacua for diagnostics
-    fv_point, tv_point, fv_V, tv_V = locate_vacua(params, guesses)
+    fv_point, fv_V, tv_point, tv_V = find_vacua_from_potential(params)
 
     print("False vacuum (highest minimum):", fv_point, "V =", fv_V)
     print("True  vacuum (lowest  minimum):", tv_point, "V =", tv_V)
@@ -76,7 +26,6 @@ def main():
 
     bounce = shoot_bounce_2d(
         params=params,
-        guesses=guesses,
         rho_max=rho_max,
         n_steps=n_steps,
         a0=ct_guided_a0,
