@@ -65,7 +65,7 @@ class _LinearPath1D:
         return (self.dV(np.asarray(x) + h) - self.dV(np.asarray(x) - h)) / (2.0 * h)
 
 
-def ct_find_profile_on_path(
+def bounce_profile_from_path(
     path_pts: np.ndarray,
     V,          # callable: V(X) with X shape (..., nfields) -> (...,)
     dV,         # callable: dV(X) with X shape (..., nfields) -> (..., nfields)
