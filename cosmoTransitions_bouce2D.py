@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy import optimize
 
 from cosmoTransitions import pathDeformation as pd
-from potential2D import V_numeric, find_critical_points, find_vacua_from_potential, V_func, gradV_func
+from potential2D import find_vacua_from_potential, V_func, gradV_func
 
 
 # ----------------------------------------------------------------------
@@ -11,8 +11,7 @@ from potential2D import V_numeric, find_critical_points, find_vacua_from_potenti
 # ----------------------------------------------------------------------
 
 def run_cosmotransitions_bounce():
-    params = (1.0, 1.2, 0.5, 0.6, 0.2, 0.3)
-
+    params = (1.0, 1.2, 0.4, 0.5, 0.35, 0.1)
 
     # 1) Identify true and false vacuum
     fv, fv_V, tv,tv_V  = find_vacua_from_potential(params=params)
@@ -51,6 +50,7 @@ def run_cosmotransitions_bounce():
     print(f"  Action S4 ≈ {action:.6f}")
     print(f"  fRatio (transverse force / |grad V|) ≈ {fRatio:.3e}")
     print(f"  Number of points along path: {Phi_path.shape[0]}")
+    print(f"  Center: {Phi_path[0]}")
 
     # ------------------------------------------------------------------
     # 4. Plots: field-space contour + path, and radial profiles

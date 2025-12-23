@@ -1,6 +1,8 @@
+# classical_bounce1D.py
+
 import numpy as np
 from dataclasses import dataclass
-from typing import Callable, Sequence, Tuple, List, Optional
+from typing import Callable, Sequence, Tuple, List, Optional, Dict
 
 FloatFunc = Callable[[float, Sequence[float]], float]
 
@@ -9,7 +11,7 @@ class BounceSolution1D:
     rho: np.ndarray
     phi: np.ndarray
     dphi: np.ndarray
-    action: float
+    action: Dict[str, float]
     a_shoot: float
     phi_FV: float
     phi_TV: float
@@ -58,10 +60,12 @@ def _bounce_ode_factory_1d(
 def _integrate_profile_1d(
     a: float,
     dV_dphi: FloatFunc,
+    V: FloatFunc,
+    phi_FV: float,
     params: Sequence[float],
     rho_max: float,
     n_steps: int,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float, float]:
     ode = _bounce_ode_factory_1d(dV_dphi, params)
 
     rho = np.linspace(0.0, rho_max, n_steps + 1)
@@ -73,7 +77,9 @@ def _integrate_profile_1d(
     phi_vals = np.empty_like(rho)
     pi_vals = np.empty_like(rho)
 
-    action = 0.0
+    action_kin = 0.0
+    action_pot = 0.0
+    V_FV = V(phi_FV, params)
 
     for i, r in enumerate(rho):
         phi_vals[i] = y[0]
@@ -83,29 +89,33 @@ def _integrate_profile_1d(
         if i > 0:
             pi_mid = 0.5 * (pi_vals[i] + pi_vals[i - 1])
             r_mid = 0.5 * (rho[i] + rho[i - 1])
-            action += 0.5 * pi_mid**2 * r_mid**3 * h
+            action_kin += 0.5 * pi_mid**2 * r_mid**3 * h
+            phi_mid = 0.5 * (phi_vals[i] + phi_vals[i - 1])
+            action_pot += (V(phi_mid, params) - V_FV) * r_mid**3 * h
 
         if i < n_steps:
             y = rk4_step(ode, r, y, h)
 
-    return rho, phi_vals, pi_vals, action
+    return rho, phi_vals, pi_vals, action_kin, action_pot
 
 def _end_value_1d(
     a: float,
     phi_FV: float,
     dV_dphi: FloatFunc,
+    V: FloatFunc,
     params: Sequence[float],
     rho_max: float,
     n_steps: int,
 ) -> float:
     """Boundary mismatch F(a) = phi(rho_max; a) - phi_FV for the 1D bounce."""
-    _, phi, _, _ = _integrate_profile_1d(a, dV_dphi, params, rho_max, n_steps)
+    _, phi, _, _, _ = _integrate_profile_1d(a, dV_dphi, V, phi_FV, params, rho_max, n_steps)
     return float(phi[-1] - phi_FV)
 
 
 def shoot_bounce_1d(
     params: Sequence[float],
     dV_dphi: FloatFunc,
+    V: FloatFunc,
     phi_FV: float,
     phi_TV: float,
     rho_max: float,
@@ -123,8 +133,8 @@ def shoot_bounce_1d(
         a1 = phi_TV + 0.5 * (phi_FV - phi_TV)
 
     # Initial mismatches at rho_max
-    F0 = _end_value_1d(a0, phi_FV, dV_dphi, params, rho_max, n_steps)
-    F1 = _end_value_1d(a1, phi_FV, dV_dphi, params, rho_max, n_steps)
+    F0 = _end_value_1d(a0, phi_FV, dV_dphi, V, params, rho_max, n_steps)
+    F1 = _end_value_1d(a1, phi_FV, dV_dphi, V, params, rho_max, n_steps)
 
     for _ in range(max_iter):
         if abs(F1 - F0) < 1e-14:
@@ -133,7 +143,7 @@ def shoot_bounce_1d(
 
         # Secant update for a
         a2 = a1 - F1 * (a1 - a0) / (F1 - F0)
-        F2 = _end_value_1d(a2, phi_FV, dV_dphi, params, rho_max, n_steps)
+        F2 = _end_value_1d(a2, phi_FV, dV_dphi, V, params, rho_max, n_steps)
 
         if abs(F2) < tol:
             a1, F1 = a2, F2
@@ -142,13 +152,19 @@ def shoot_bounce_1d(
         a0, F0, a1, F1 = a1, F1, a2, F2
 
     # Final integration with the best a
-    rho, phi, pi, action = _integrate_profile_1d(a1, dV_dphi, params, rho_max, n_steps)
+    rho, phi, pi, action_kin, action_pot = _integrate_profile_1d(
+        a1, dV_dphi, V, phi_FV, params, rho_max, n_steps
+    )
 
     return BounceSolution1D(
         rho=rho,
         phi=phi,
         dphi=pi,
-        action=action,
+        action={
+            "kinetic_surface": action_kin,
+            "potential_offset": action_pot,
+            "total": action_kin + action_pot,
+        },
         a_shoot=a1,
         phi_FV=phi_FV,
         phi_TV=phi_TV,

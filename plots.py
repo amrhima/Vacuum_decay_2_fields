@@ -1,7 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from potential2D import V_numeric
-from path_deformation import path_deformation
 
 def plot_tunneling_path(
     Phi_path,
@@ -9,6 +7,7 @@ def plot_tunneling_path(
     fv_point,
     V,
     params,
+    R=None,
     n_grid=200,
     filename=None,
 ):
@@ -68,7 +67,8 @@ def plot_tunneling_path(
     phi1_r = Phi_path[:, 0]
     phi2_r = Phi_path[:, 1]
     
-    R = np.linspace(0, 35, phi1_r.size)
+    if R is None:    
+        R = np.linspace(0, 35, phi1_r.size)
 
     ax2.plot(R, phi1_r, label=r"$\phi_1(\rho)$")
     ax2.plot(R, phi2_r, label=r"$\phi_2(\rho)$")
@@ -84,14 +84,3 @@ def plot_tunneling_path(
 
     plt.show()
     
-params = (1.0, 1.2, 0.5, 0.6, 0.2, 0.3)
-Phi_path,fv_point, phi_FV, tv_point, phi_TV = path_deformation(params)
-
-plot_tunneling_path(
-    Phi_path=Phi_path,
-    tv_point=tv_point,
-    fv_point=fv_point,
-    V=V_numeric,
-    params=params,
-    filename="vacuum_decay_path.png",
-)

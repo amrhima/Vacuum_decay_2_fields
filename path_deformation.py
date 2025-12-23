@@ -1,23 +1,23 @@
-from tkinter import constants
 import numpy as np
-from potential2D import find_vacua_from_potential, gradV_numeric
+from potential2D import V_numeric, find_vacua_from_potential, gradV_numeric  # assume V_2D(x, params)
+from scipy.integrate import solve_ivp
 
 def path_deformation(
     params,
-    N=100,
+    N=200,
     alpha=0.01,
     max_iter=200,
     tol=1e-3,
 ):
-    fv_point, phi_FV, tv_point, phi_TV = find_vacua_from_potential(params)
-    # initial straight-line path
-    # initial straight-line path
+    fv_point, fv_V, tv_point, tv_V = find_vacua_from_potential(params)
+
+    # initial straight-line path in field space from TV to FV
     s = np.linspace(0.0, 1.0, N)
     Phi = np.zeros((N, 2))
     Phi[0]  = tv_point
     Phi[-1] = fv_point
     for i in range(1, N-1):
-        Phi[i] = (1 - s[i]) * phi_TV + s[i] * phi_FV
+        Phi[i] = (1 - s[i]) * np.asarray(tv_point) + s[i] * np.asarray(fv_point)
 
     gradV = gradV_numeric
     for it in range(max_iter):
@@ -39,7 +39,7 @@ def path_deformation(
             print("Converged.")
             break
 
-    return Phi, fv_point, phi_FV, tv_point, phi_TV
+    return Phi, fv_point, fv_V, tv_point, tv_V
 
 def compute_tangent(Phi):
     # Phi shape (N, 2)
@@ -52,8 +52,7 @@ def compute_tangent(Phi):
     t[-1] = Phi[-1] - Phi[-2]
     # normalize
     norms = np.linalg.norm(t, axis=1, keepdims=True)
-    # avoid division by zero
-    norms[norms == 0.0] = 1.0
+    norms[norms == 0.0] = 1.0  # avoid division by zero
     t /= norms
     return t
 
