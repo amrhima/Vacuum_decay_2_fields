@@ -105,7 +105,7 @@ def main() -> None:
     parser.add_argument(
         "--data-dir",
         default=None,
-        help="Output directory (defaults to TRG_DATA_DIR/TRG_OUT_DIR or $G_PROJECT_DATA).",
+        help="Output directory (defaults to $G_PROJECT_DATA, else <v2>/data).",
     )
     parser.set_defaults(build_missing_rk=True)
     parser.set_defaults(merge=True)
@@ -130,18 +130,10 @@ def main() -> None:
         else:
             raise FileNotFoundError(f"Bounce file not found: {args.bounce}")
 
-    default_data_dir = DATA_DIR
-    data_dir = (
-        args.data_dir
-        or os.environ.get("TRG_DATA_DIR")
-        or os.environ.get("TRG_OUT_DIR")
-    )
-    if data_dir is None and os.path.isdir(default_data_dir):
-        data_dir = default_data_dir
-    if data_dir:
-        os.makedirs(data_dir, exist_ok=True)
-        os.chdir(data_dir)
-        print(f"[INFO] Writing outputs to {data_dir}")
+    data_dir = args.data_dir or DATA_DIR
+    os.makedirs(data_dir, exist_ok=True)
+    os.chdir(data_dir)
+    print(f"[INFO] Writing outputs to {data_dir}")
 
     bdata = np.load(bounce_path, allow_pickle=True)
     false_index = int(bdata["false_index"])

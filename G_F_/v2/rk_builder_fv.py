@@ -220,14 +220,10 @@ def main() -> None:
         else:
             raise FileNotFoundError(f"Bounce file not found: {args.bounce}")
 
-    default_data_dir = DATA_DIR
-    output_dir = os.environ.get("TRG_OUT_DIR")
-    if output_dir is None and os.path.isdir(default_data_dir):
-        output_dir = default_data_dir
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-        os.chdir(output_dir)
-        print(f"[INFO] Writing outputs to {output_dir}")
+    output_dir = DATA_DIR
+    os.makedirs(output_dir, exist_ok=True)
+    os.chdir(output_dir)
+    print(f"[INFO] Writing outputs to {output_dir}")
 
     build_rk_green_fv_for_bounce(
         bounce_path,

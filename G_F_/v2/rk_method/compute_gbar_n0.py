@@ -269,13 +269,7 @@ def main():
     print(f"[INFO] Bounce file: {bounce_path}")
 
     # --- output directory ---
-    data_dir = args.data_dir or os.environ.get("TRG_DATA_DIR")
-    if data_dir is None:
-        dp = DATA_DIR
-        if os.path.isdir(dp):
-            data_dir = dp
-        else:
-            data_dir = script_dir
+    data_dir = args.data_dir or DATA_DIR
     os.makedirs(data_dir, exist_ok=True)
     print(f"[INFO] Output directory: {data_dir}")
 

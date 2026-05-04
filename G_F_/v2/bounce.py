@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from cosmoTransitions import pathDeformation as pd
 from cosmoTransitions.tunneling1D import PotentialError
+from config import DATA_DIR
 from potential import (
     PARAMS_DEFAULT,
     find_all_minima,
@@ -74,6 +75,10 @@ def compute_bounce_for_pair(pot_prime,
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.chdir(DATA_DIR)
+    print(f"[INFO] Writing outputs to {DATA_DIR}")
+
     params = PARAMS_DEFAULT.copy()
     print("Using parameters:", params)
 

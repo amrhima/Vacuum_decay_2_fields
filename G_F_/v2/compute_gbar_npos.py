@@ -89,17 +89,7 @@ def main() -> None:
     bounce_path = resolve_bounce(args.bounce, script_dir)
     print(f"[INFO] Bounce file: {bounce_path}")
 
-    data_dir = args.data_dir
-    if data_dir is None:
-        dp = DATA_DIR
-        if os.path.isdir(dp):
-            data_dir = dp
-        else:
-            data_dir_candidate = os.path.join(script_dir, "data_files")
-            if os.path.isdir(data_dir_candidate):
-                data_dir = data_dir_candidate
-            else:
-                data_dir = script_dir
+    data_dir = args.data_dir or DATA_DIR
     os.makedirs(data_dir, exist_ok=True)
     os.chdir(data_dir)
     print(f"[INFO] Writing outputs to {data_dir}")
