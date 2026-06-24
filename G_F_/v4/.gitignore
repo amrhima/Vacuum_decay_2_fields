@@ -1,0 +1,12 @@
+# Data and generated outputs
+/data/
+*.npz
+*.npy
+
+# Python cruft
+__pycache__/
+*.pyc
+
+# Environments / OS
+.venv/
+.DS_Store
