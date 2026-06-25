@@ -162,11 +162,11 @@ $$ (-\partial_r^2 u)_i \approx -\frac{u_{i-1} - 2u_i + u_{i+1}}{(\Delta r)^2} $$
 
 *Hutchinson stochastic trace estimator*
 
-$$ \operatorname{Tr}(A^{-1}) \approx \frac{1}{K}\sum_{k=1}^{K} v_k^{\mathsf T} A^{-1} v_k, \qquad A = \tilde M + s^2 I, \quad (v_k)_i \in \{-1, +1\} $$
+$$ tr(A^{-1}) \approx \frac{1}{K}\sum_{k=1}^{K} v_k^{\mathsf T} A^{-1} v_k, \qquad A = \tilde M + s^2 I, \quad (v_k)_i \in \{-1, +1\} $$
 
 *Rank-1 projected-trace identity (negative mode removed)*
 
-$$ \operatorname{Tr}(P A^{-1} P) = \operatorname{Tr}(A^{-1}) - \chi^{\mathsf T} A^{-1} \chi, \qquad P = I - \chi\chi^{\mathsf T}, \ \lVert\chi\rVert = 1 $$
+$$ tr(P A^{-1} P) = tr(A^{-1}) - \chi^{\mathsf T} A^{-1} \chi, \qquad P = I - \chi\chi^{\mathsf T}, \ \lVert\chi\rVert = 1 $$
 
 **Key objects**
 
@@ -206,11 +206,11 @@ $$ \chi_{\text{zm}}(r) \propto r^{3/2}\,\frac{d\phi}{dr}, \qquad \big(\chi_x,\ch
 
 *Hutchinson trace estimator of the resolvent*
 
-$$ \operatorname{Tr}\!\big[(\tilde{M}_n + s^2 I)^{-1}\big] \approx \frac{1}{K}\sum_{k=1}^{K} v_k^{\top} (\tilde{M}_n + s^2 I)^{-1} v_k, \qquad (v_k)_i \in \{-1,+1\} $$
+$$ tr\!\big[(\tilde{M}_n + s^2 I)^{-1}\big] \approx \frac{1}{K}\sum_{k=1}^{K} v_k^{\top} (\tilde{M}_n + s^2 I)^{-1} v_k, \qquad (v_k)_i \in \{-1,+1\} $$
 
 *Rank-one projected (zero-mode-subtracted) trace identity*
 
-$$ \operatorname{Tr}\!\big[P A^{-1} P\big] = \operatorname{Tr}\!\big[A^{-1}\big] - \chi^{\top} A^{-1}\chi, \qquad P = I - \chi\chi^{\top}, \;\; \|\chi\| = 1, \;\; A = \tilde{M}_n + s^2 I $$
+$$ tr\!\big[P A^{-1} P\big] = tr\!\big[A^{-1}\big] - \chi^{\top} A^{-1}\chi, \qquad P = I - \chi\chi^{\top}, \;\; \|\chi\| = 1, \;\; A = \tilde{M}_n + s^2 I $$
 
 **Key objects**
 
@@ -250,11 +250,11 @@ $$ \tilde{M}\,\chi = \lambda_{\mathrm{neg}}\,\chi, \quad \lambda_{\mathrm{neg}} 
 
 *Raw and zero-mode-subtracted traces (rank-1 identity)*
 
-$$ \bar{g}_{\text{raw}}(s^2) = \operatorname{Tr}\!\big[(\tilde{M} + s^2 I)^{-1}\big], \qquad \bar{g}_{\text{sub}}(s^2) = \operatorname{Tr}\!\big[P(\tilde{M}+s^2 I)^{-1}P\big] = \bar{g}_{\text{raw}}(s^2) - \chi^{T}(\tilde{M}+s^2 I)^{-1}\chi, \qquad P = I - \chi\chi^{T} $$
+$$ \bar{g}_{\text{raw}}(s^2) = tr\!\big[(\tilde{M} + s^2 I)^{-1}\big], \qquad \bar{g}_{\text{sub}}(s^2) = tr\!\big[P(\tilde{M}+s^2 I)^{-1}P\big] = \bar{g}_{\text{raw}}(s^2) - \chi^{T}(\tilde{M}+s^2 I)^{-1}\chi, \qquad P = I - \chi\chi^{T} $$
 
 *Hutchinson stochastic trace estimator*
 
-$$ \operatorname{Tr}[A^{-1}] \approx \frac{1}{K}\sum_{k=1}^{K} v_k^{T} A^{-1} v_k, \qquad (v_k)_j \in \{-1,+1\}, \quad \mathrm{SEM} = \frac{\mathrm{std}(v_k^T A^{-1} v_k)}{\sqrt{K}} $$
+$$ tr[A^{-1}] \approx \frac{1}{K}\sum_{k=1}^{K} v_k^{T} A^{-1} v_k, \qquad (v_k)_j \in \{-1,+1\}, \quad \mathrm{SEM} = \frac{\mathrm{std}(v_k^T A^{-1} v_k)}{\sqrt{K}} $$
 
 **Key objects**
 
@@ -287,15 +287,15 @@ $$ \tilde{M} = \begin{pmatrix} -\partial_r^2 + V_{\mathrm{rad}} + U''_{11} & U''
 
 *Raw resolvent trace (per partial wave)*
 
-$$ \bar{g}_{\mathrm{raw}}(s^2) = \operatorname{Tr}\big[(\tilde{M} + s^2 I)^{-1}\big] $$
+$$ \bar{g}_{\mathrm{raw}}(s^2) = tr\big[(\tilde{M} + s^2 I)^{-1}\big] $$
 
 *Zero-mode-subtracted trace via rank-1 identity*
 
-$$ \bar{g}_{\mathrm{sub}}(s^2) = \operatorname{Tr}\big[P\,(\tilde{M}+s^2 I)^{-1} P\big] = \operatorname{Tr}\big[(\tilde{M}+s^2 I)^{-1}\big] - \chi_{\mathrm{zm}}^{\mathsf T} (\tilde{M}+s^2 I)^{-1}\chi_{\mathrm{zm}}, \quad P = I - \chi_{\mathrm{zm}}\chi_{\mathrm{zm}}^{\mathsf T} $$
+$$ \bar{g}_{\mathrm{sub}}(s^2) = tr\big[P\,(\tilde{M}+s^2 I)^{-1} P\big] = tr\big[(\tilde{M}+s^2 I)^{-1}\big] - \chi_{\mathrm{zm}}^{\mathsf T} (\tilde{M}+s^2 I)^{-1}\chi_{\mathrm{zm}}, \quad P = I - \chi_{\mathrm{zm}}\chi_{\mathrm{zm}}^{\mathsf T} $$
 
 *Degeneracy-weighted output and Hutchinson estimator*
 
-$$ \bar{g}_{n=1} = (n+1)^2\,\bar{g}, \qquad \operatorname{Tr}\,A^{-1} \approx \frac{1}{K}\sum_{k=1}^{K} v_k^{\mathsf T} A^{-1} v_k, \quad (v_k)_i \in \{-1,+1\} $$
+$$ \bar{g}_{n=1} = (n+1)^2\,\bar{g}, \qquad tr\,A^{-1} \approx \frac{1}{K}\sum_{k=1}^{K} v_k^{\mathsf T} A^{-1} v_k, \quad (v_k)_i \in \{-1,+1\} $$
 
 **Key objects**
 
