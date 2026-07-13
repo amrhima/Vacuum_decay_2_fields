@@ -39,10 +39,21 @@ Used by: compute_gbar_npos_wkb_vfinal4.py.
 """
 
 import os
+import sys
 import numpy as np
-from scipy.integrate import solve_ivp
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ROOT = os.path.dirname(_HERE)
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
 
 import wkb_bessel_vfinal4_git as wkb
+from green_function_constructor import (
+    average_wronskian_plateau,
+    diagonal_trace_from_fundamentals,
+    integrate_branch,
+    weighted_wronskian_profile,
+)
 from potential_git import CTShiftedLiftedPotential
 
 
@@ -182,24 +193,6 @@ def rhs_h_ivp(r, y, sign, sol_index, K_matrix, A_i):
     return np.array([v1, v2, dv1, dv2])
 
 
-def solve_branch(r_start, r_end, y0, sign, sol_index, K_matrix, A_i, r_eval):
-    def capture(r, y):
-        return rhs_h_ivp(r, y, sign, sol_index, K_matrix, A_i)
-
-    sol = solve_ivp(
-        capture,
-        (r_start, r_end),
-        y0,
-        method="Radau",
-        t_eval=r_eval,
-        rtol=1e-7,
-        atol=1e-9,
-    )
-    if not sol.success:
-        raise RuntimeError(f"solve_ivp failed: {sol.message}")
-    return sol.t, sol.y.T
-
-
 def build_rk_green_for_bounce_wkb(bounce_npz_filename, s2, n_mode,
                                   n_eval=2000, r0=1e-4,
                                   out_fname=None, overwrite=False):
@@ -256,19 +249,25 @@ def build_rk_green_for_bounce_wkb(bounce_npz_filename, s2, n_mode,
     r_grid = np.linspace(r_start, r_max, n_eval)
     y0 = np.array([0.0, 0.0, 0.0, 0.0])
 
-    _r_minus, y_minus_1 = solve_branch(
-        r_start, r_max, y0, "-", 0, K_matrix, A_i, r_grid
+    def make_rhs(sign, sol_index):
+        def capture(r, y):
+            return rhs_h_ivp(r, y, sign, sol_index, K_matrix, A_i)
+
+        return capture
+
+    _r_minus, y_minus_1 = integrate_branch(
+        make_rhs("-", 0), r_start, r_max, y0, r_grid
     )
-    _r_minus2, y_minus_2 = solve_branch(
-        r_start, r_max, y0, "-", 1, K_matrix, A_i, r_grid
+    _r_minus2, y_minus_2 = integrate_branch(
+        make_rhs("-", 1), r_start, r_max, y0, r_grid
     )
 
     r_grid_desc = r_grid[::-1]
-    _r_plus, y_plus_1 = solve_branch(
-        r_max, r_start, y0, "+", 0, K_matrix, A_i, r_grid_desc
+    _r_plus, y_plus_1 = integrate_branch(
+        make_rhs("+", 0), r_max, r_start, y0, r_grid_desc
     )
-    _r_plus2, y_plus_2 = solve_branch(
-        r_max, r_start, y0, "+", 1, K_matrix, A_i, r_grid_desc
+    _r_plus2, y_plus_2 = integrate_branch(
+        make_rhs("+", 1), r_max, r_start, y0, r_grid_desc
     )
     y_plus_1 = y_plus_1[::-1, :]
     y_plus_2 = y_plus_2[::-1, :]
@@ -321,46 +320,28 @@ def build_rk_green_for_bounce_wkb(bounce_npz_filename, s2, n_mode,
             B_plus[k, i] = B(i, r, "+")
             B_minus[k, i] = B(i, r, "-")
 
-    w_raw = np.zeros((nr, 2, 2))
-    for idx, _r in enumerate(r_grid):
-        w = np.zeros((2, 2))
-        for alpha in range(2):
-            for beta in range(2):
-                s = 0.0
-                for i in range(2):
-                    fm_a = f_minus[idx, i, alpha]
-                    fp_b = f_plus[idx, i, beta]
-                    dfm_a = df_minus[idx, i, alpha]
-                    dfp_b = df_plus[idx, i, beta]
-                    s += fm_a * dfp_b - fp_b * dfm_a
-                w[alpha, beta] = -s
-        w_raw[idx] = w
-
-    w_scaled = np.zeros_like(w_raw)
-    for idx, r in enumerate(r_grid):
-        w_scaled[idx] = (r ** 3) * w_raw[idx]
-
-    r_min_tail = 0.05
-    r_max_tail = 0.9 * r_grid[-1]
-    i_min = np.searchsorted(r_grid, r_min_tail)
-    i_max = np.searchsorted(r_grid, r_max_tail)
-    w_tail = w_scaled[i_min:i_max + 1, :, :]
-    omega = np.mean(w_tail, axis=0)
-    omega_inv = np.linalg.inv(omega)
+    _, w_scaled = weighted_wronskian_profile(
+        f_minus,
+        df_minus,
+        f_plus,
+        df_plus,
+        r_grid,
+        weight_power=3,
+    )
+    omega, omega_inv, (i_min, i_max) = average_wronskian_plateau(
+        w_scaled,
+        r_grid,
+        r_min_tail=0.05,
+        r_max_tail_fraction=0.9,
+    )
 
     print("\n[r^3 Wronskian plateau]")
     print("  r_min_tail =", r_grid[i_min], " r_max_tail =", r_grid[i_max])
     print("  Omega (no symmetrization) =\n", omega)
 
-    omega_inv_T = omega_inv.T
-
-    # [vx-opt] The downstream consumer only reads the diagonal trace
-    # trace(G_rk[k,k]); at k==l the (r>=rp) branch is taken, so
-    # G_rk[k,k] = f_plus[k] @ omega_inv @ f_minus[k].T.  We compute its
-    # trace directly and skip the O(nr^2) dense G_rk build entirely.
-    # trace_diag[k] = sum_{i,b,c} f_plus[k,i,b] omega_inv[b,c] f_minus[k,i,c]
-    # (VERIFIED bit-identical to the old np.trace(g_rk[k,k]) diagonal).
-    trace_diag = np.einsum('kib,bc,kic->k', f_plus, omega_inv, f_minus)
+    # [vx-opt] The downstream consumer only reads the diagonal trace.
+    # We compute it directly from the plus/minus bases and Omega^{-1}.
+    trace_diag = diagonal_trace_from_fundamentals(f_plus, f_minus, omega_inv)
 
     print("\n[RK Green WKB-A] computed trace_diag with shape", trace_diag.shape)
 

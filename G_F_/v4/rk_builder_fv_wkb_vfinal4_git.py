@@ -11,9 +11,20 @@ Used by: compute_gbar_fv_wkb_vfinal4.py.
 """
 
 import os
+import sys
 import numpy as np
 
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ROOT = os.path.dirname(_HERE)
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
 import wkb_bessel_vfinal4_git as wkb
+from green_function_constructor import (
+    average_wronskian_plateau,
+    diagonal_trace_from_fundamentals,
+    weighted_wronskian_profile,
+)
 from potential_git import CTShiftedLiftedPotential
 
 
@@ -113,32 +124,24 @@ def build_rk_green_fv_for_bounce_wkb(bounce_npz_filename, s2, n_mode,
                 df_plus[k, i, alpha] = db(i, r, "+") * delta
                 df_minus[k, i, alpha] = db(i, r, "-") * delta
 
-    w_raw = np.zeros((nr, 2, 2))
-    for idx in range(nr):
-        w = np.zeros((2, 2))
-        for alpha in range(2):
-            for beta in range(2):
-                s = 0.0
-                for i in range(2):
-                    fm_a = f_minus[idx, i, alpha]
-                    fp_b = f_plus[idx, i, beta]
-                    dfm_a = df_minus[idx, i, alpha]
-                    dfp_b = df_plus[idx, i, beta]
-                    s += fm_a * dfp_b - fp_b * dfm_a
-                w[alpha, beta] = -s
-        w_raw[idx] = w
+    _, w_scaled = weighted_wronskian_profile(
+        f_minus,
+        df_minus,
+        f_plus,
+        df_plus,
+        r_grid,
+        weight_power=3,
+    )
+    omega, omega_inv, (i_min, i_max) = average_wronskian_plateau(
+        w_scaled,
+        r_grid,
+        r_min_tail=0.05,
+        r_max_tail_fraction=0.9,
+    )
 
-    w_scaled = np.zeros_like(w_raw)
-    for idx, r in enumerate(r_grid):
-        w_scaled[idx] = (r ** 3) * w_raw[idx]
-
-    r_min_tail = 0.05
-    r_max_tail = 0.9 * r_grid[-1]
-    i_min = np.searchsorted(r_grid, r_min_tail)
-    i_max = np.searchsorted(r_grid, r_max_tail)
-    w_tail = w_scaled[i_min:i_max + 1, :, :]
-    omega = np.mean(w_tail, axis=0)
-    omega_inv = np.linalg.inv(omega)
+    print("\n[r^3 Wronskian plateau]")
+    print("  r_min_tail =", r_grid[i_min], " r_max_tail =", r_grid[i_max])
+    print("  Omega (no symmetrization) =\n", omega)
 
     # [vx-opt] The downstream consumer only reads the diagonal trace
     # trace(G_rk[k,k]); at k==l the (r_grid[k] >= r_grid[l]) branch is
@@ -146,7 +149,7 @@ def build_rk_green_fv_for_bounce_wkb(bounce_npz_filename, s2, n_mode,
     # compute its trace directly and skip the O(nr^2) dense G_rk build.
     # trace_diag[k] = sum_{i,b,c} f_plus[k,i,b] omega_inv[b,c] f_minus[k,i,c]
     # (VERIFIED bit-identical to the old np.trace(g_rk[k,k]) diagonal).
-    trace_diag = np.einsum('kib,bc,kic->k', f_plus, omega_inv, f_minus)
+    trace_diag = diagonal_trace_from_fundamentals(f_plus, f_minus, omega_inv)
 
     np.savez(
         out_fname,

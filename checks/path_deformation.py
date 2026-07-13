@@ -1,5 +1,5 @@
 import numpy as np
-from potential2D import V_numeric, find_vacua_from_potential, gradV_numeric  # assume V_2D(x, params)
+from potential import V_numeric, find_vacua_from_potential, gradV_numeric
 from scipy.integrate import solve_ivp
 
 def path_deformation(

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy import optimize
 
 from cosmoTransitions import pathDeformation as pd
-from potential2D import find_vacua_from_potential, V_func, gradV_func
+from potential import find_vacua_from_potential, V_numeric, gradV_numeric
 
 
 # ----------------------------------------------------------------------
@@ -17,17 +17,10 @@ def run_cosmotransitions_bounce():
     fv, fv_V, tv,tv_V  = find_vacua_from_potential(params=params)
     points = [{'x': tv}, {'x': fv}]
     def V(x):
-        x = np.asarray(x)
-        phi1 = x[..., 0]
-        phi2 = x[..., 1]
-        return V_func(phi1, phi2, *params)  # broadcasts over array
+        return V_numeric(x, params)
 
     def grad_V(x):
-        x = np.asarray(x)
-        phi1 = x[..., 0]
-        phi2 = x[..., 1]
-        dphi1, dphi2 = gradV_func(phi1, phi2, *params)
-        return np.stack([dphi1, dphi2], axis=-1)  # shape like x
+        return gradV_numeric(x, params)
         
     print("\n=== Selected vacua ===")
     print(f"  True vacuum : phi = {tv[0]},  V = {tv_V}")
