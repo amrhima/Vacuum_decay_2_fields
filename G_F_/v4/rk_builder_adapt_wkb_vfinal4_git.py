@@ -49,10 +49,9 @@ if _ROOT not in sys.path:
 
 import wkb_bessel_vfinal4_git as wkb
 from green_function_constructor import (
-    average_wronskian_plateau,
-    diagonal_trace_from_fundamentals,
-    integrate_branch,
-    weighted_wronskian_profile,
+    BranchSpec,
+    FundamentalSet,
+    build_green_function,
 )
 from potential_git import CTShiftedLiftedPotential
 
@@ -247,101 +246,107 @@ def build_rk_green_for_bounce_wkb(bounce_npz_filename, s2, n_mode,
     r_start = max(float(r_bounce[0]), r0)
     r_max = float(r_bounce[-1])
     r_grid = np.linspace(r_start, r_max, n_eval)
+    r_grid_desc = r_grid[::-1]
     y0 = np.array([0.0, 0.0, 0.0, 0.0])
 
-    def make_rhs(sign, sol_index):
+    branch_specs = [
+        BranchSpec("minus_0", "-", 0, r_start, r_max, y0, r_grid),
+        BranchSpec("minus_1", "-", 1, r_start, r_max, y0, r_grid),
+        BranchSpec("plus_0", "+", 0, r_max, r_start, y0, r_grid_desc),
+        BranchSpec("plus_1", "+", 1, r_max, r_start, y0, r_grid_desc),
+    ]
+
+    def rhs_factory(sign, sol_index):
         def capture(r, y):
             return rhs_h_ivp(r, y, sign, sol_index, K_matrix, A_i)
 
         return capture
 
-    _r_minus, y_minus_1 = integrate_branch(
-        make_rhs("-", 0), r_start, r_max, y0, r_grid
+    def fundamental_builder(branch_solutions):
+        minus_0 = branch_solutions["minus_0"].y
+        minus_1 = branch_solutions["minus_1"].y
+        plus_0 = branch_solutions["plus_0"].y[::-1, :]
+        plus_1 = branch_solutions["plus_1"].y[::-1, :]
+
+        nr = len(r_grid)
+        h_minus = np.zeros((nr, 2, 2))
+        dh_minus = np.zeros((nr, 2, 2))
+        h_plus = np.zeros((nr, 2, 2))
+        dh_plus = np.zeros((nr, 2, 2))
+
+        h_minus[:, 0, 0], h_minus[:, 1, 0] = minus_0[:, 0], minus_0[:, 1]
+        dh_minus[:, 0, 0], dh_minus[:, 1, 0] = minus_0[:, 2], minus_0[:, 3]
+        h_minus[:, 0, 1], h_minus[:, 1, 1] = minus_1[:, 0], minus_1[:, 1]
+        dh_minus[:, 0, 1], dh_minus[:, 1, 1] = minus_1[:, 2], minus_1[:, 3]
+
+        h_plus[:, 0, 0], h_plus[:, 1, 0] = plus_0[:, 0], plus_0[:, 1]
+        dh_plus[:, 0, 0], dh_plus[:, 1, 0] = plus_0[:, 2], plus_0[:, 3]
+        h_plus[:, 0, 1], h_plus[:, 1, 1] = plus_1[:, 0], plus_1[:, 1]
+        dh_plus[:, 0, 1], dh_plus[:, 1, 1] = plus_1[:, 2], plus_1[:, 3]
+
+        print("\n[h-basis] solved adaptive system (WKB Stage A):")
+        print(f"  r range: {r_grid[0]:.4e} -> {r_grid[-1]:.4f}, Nr={nr}")
+
+        def build_f_df(sign):
+            f = np.zeros((nr, 2, 2))
+            df = np.zeros((nr, 2, 2))
+            for k, r in enumerate(r_grid):
+                for i in range(2):
+                    for alpha in range(2):
+                        delta = 1.0 if i == alpha else 0.0
+                        if sign == "+":
+                            h = h_plus[k, i, alpha]
+                            dh = dh_plus[k, i, alpha]
+                            bi, dbi = B(i, r, "+"), dB(i, r, "+")
+                        else:
+                            h = h_minus[k, i, alpha]
+                            dh = dh_minus[k, i, alpha]
+                            bi, dbi = B(i, r, "-"), dB(i, r, "-")
+                        f[k, i, alpha] = bi * (delta + h)
+                        df[k, i, alpha] = dbi * (delta + h) + bi * dh
+            return f, df
+
+        f_plus, df_plus = build_f_df("+")
+        f_minus, df_minus = build_f_df("-")
+        return FundamentalSet(
+            f_minus=f_minus,
+            df_minus=df_minus,
+            f_plus=f_plus,
+            df_plus=df_plus,
+            metadata={
+                "h_minus": h_minus,
+                "dh_minus": dh_minus,
+                "h_plus": h_plus,
+                "dh_plus": dh_plus,
+            },
+        )
+
+    result = build_green_function(
+        branch_specs,
+        rhs_factory,
+        fundamental_builder,
+        r_grid,
+        weight_power=3,
+        r_min_tail=0.05,
+        r_max_tail_fraction=0.9,
     )
-    _r_minus2, y_minus_2 = integrate_branch(
-        make_rhs("-", 1), r_start, r_max, y0, r_grid
-    )
 
-    r_grid_desc = r_grid[::-1]
-    _r_plus, y_plus_1 = integrate_branch(
-        make_rhs("+", 0), r_max, r_start, y0, r_grid_desc
-    )
-    _r_plus2, y_plus_2 = integrate_branch(
-        make_rhs("+", 1), r_max, r_start, y0, r_grid_desc
-    )
-    y_plus_1 = y_plus_1[::-1, :]
-    y_plus_2 = y_plus_2[::-1, :]
-
-    nr = len(r_grid)
-    h_minus = np.zeros((nr, 2, 2))
-    dh_minus = np.zeros((nr, 2, 2))
-    h_plus = np.zeros((nr, 2, 2))
-    dh_plus = np.zeros((nr, 2, 2))
-
-    h_minus[:, 0, 0], h_minus[:, 1, 0] = y_minus_1[:, 0], y_minus_1[:, 1]
-    dh_minus[:, 0, 0], dh_minus[:, 1, 0] = y_minus_1[:, 2], y_minus_1[:, 3]
-    h_minus[:, 0, 1], h_minus[:, 1, 1] = y_minus_2[:, 0], y_minus_2[:, 1]
-    dh_minus[:, 0, 1], dh_minus[:, 1, 1] = y_minus_2[:, 2], y_minus_2[:, 3]
-
-    h_plus[:, 0, 0], h_plus[:, 1, 0] = y_plus_1[:, 0], y_plus_1[:, 1]
-    dh_plus[:, 0, 0], dh_plus[:, 1, 0] = y_plus_1[:, 2], y_plus_1[:, 3]
-    h_plus[:, 0, 1], h_plus[:, 1, 1] = y_plus_2[:, 0], y_plus_2[:, 1]
-    dh_plus[:, 0, 1], dh_plus[:, 1, 1] = y_plus_2[:, 2], y_plus_2[:, 3]
-
-    print("\n[h-basis] solved adaptive system (WKB Stage A):")
-    print(f"  r range: {r_grid[0]:.4e} -> {r_grid[-1]:.4f}, Nr={nr}")
-
-    def build_f_df(sign):
-        f = np.zeros((nr, 2, 2))
-        df = np.zeros((nr, 2, 2))
-        for k, r in enumerate(r_grid):
-            for i in range(2):
-                for alpha in range(2):
-                    delta = 1.0 if i == alpha else 0.0
-                    if sign == "+":
-                        h = h_plus[k, i, alpha]
-                        dh = dh_plus[k, i, alpha]
-                        bi, dbi = B(i, r, "+"), dB(i, r, "+")
-                    else:
-                        h = h_minus[k, i, alpha]
-                        dh = dh_minus[k, i, alpha]
-                        bi, dbi = B(i, r, "-"), dB(i, r, "-")
-                    f[k, i, alpha] = bi * (delta + h)
-                    df[k, i, alpha] = dbi * (delta + h) + bi * dh
-        return f, df
-
-    f_plus, df_plus = build_f_df("+")
-    f_minus, df_minus = build_f_df("-")
-
-    B_plus = np.zeros((nr, 2))
-    B_minus = np.zeros((nr, 2))
+    B_plus = np.zeros((len(r_grid), 2))
+    B_minus = np.zeros((len(r_grid), 2))
     for k, r in enumerate(r_grid):
         for i in range(2):
             B_plus[k, i] = B(i, r, "+")
             B_minus[k, i] = B(i, r, "-")
 
-    _, w_scaled = weighted_wronskian_profile(
-        f_minus,
-        df_minus,
-        f_plus,
-        df_plus,
-        r_grid,
-        weight_power=3,
-    )
-    omega, omega_inv, (i_min, i_max) = average_wronskian_plateau(
-        w_scaled,
-        r_grid,
-        r_min_tail=0.05,
-        r_max_tail_fraction=0.9,
-    )
+    w_scaled = result.w_scaled
+    omega = result.omega
+    omega_inv = result.omega_inv
+    trace_diag = result.trace_diag
+    i_min, i_max = result.tail_bounds
 
     print("\n[r^3 Wronskian plateau]")
     print("  r_min_tail =", r_grid[i_min], " r_max_tail =", r_grid[i_max])
     print("  Omega (no symmetrization) =\n", omega)
-
-    # [vx-opt] The downstream consumer only reads the diagonal trace.
-    # We compute it directly from the plus/minus bases and Omega^{-1}.
-    trace_diag = diagonal_trace_from_fundamentals(f_plus, f_minus, omega_inv)
 
     print("\n[RK Green WKB-A] computed trace_diag with shape", trace_diag.shape)
 
@@ -357,6 +362,7 @@ def build_rk_green_for_bounce_wkb(bounce_npz_filename, s2, n_mode,
         h_minus=h_minus,
         B_plus=B_plus,
         B_minus=B_minus,
+        W_raw=result.w_raw,
         Omega_inv=omega_inv,
         M_free=M_free,
         W_scaled=w_scaled,

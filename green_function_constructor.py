@@ -18,12 +18,53 @@ class BranchSolution:
     sol_index: int | None = None
 
 
+@dataclass(frozen=True)
+class BranchSpec:
+    """Specification for one branch solve."""
+
+    name: str
+    sign: str
+    sol_index: int
+    r_start: float
+    r_end: float
+    y0: Array
+    r_eval: Array
+    method: str = "Radau"
+    rtol: float = 1e-7
+    atol: float = 1e-9
+
+
 @dataclass
 class FundamentalMatrix:
     r: Array
     Y: Array
     Yp: Array
     metadata: dict[str, object] | None = None
+
+
+@dataclass
+class FundamentalSet:
+    """Bundle of plus/minus fundamental solutions and derivatives."""
+
+    f_minus: Array
+    df_minus: Array
+    f_plus: Array
+    df_plus: Array
+    metadata: dict[str, object] | None = None
+
+
+@dataclass
+class GreenFunctionResult:
+    """End-to-end result from the generic Green-function builder."""
+
+    branch_solutions: dict[str, BranchSolution]
+    fundamentals: FundamentalSet
+    w_raw: Array
+    w_scaled: Array
+    omega: Array
+    omega_inv: Array
+    trace_diag: Array
+    tail_bounds: Tuple[int, int]
 
 
 def integrate_branch(
@@ -50,6 +91,32 @@ def integrate_branch(
     if not sol.success:
         raise RuntimeError(f"solve_ivp failed: {sol.message}")
     return BranchSolution(r=sol.t, y=sol.y.T)
+
+
+def solve_branch_family(
+    branch_specs: Sequence[BranchSpec],
+    rhs_factory: Callable[[str, int], RhsFunc],
+) -> dict[str, BranchSolution]:
+    """Solve a set of branch problems keyed by spec.name."""
+    branch_solutions: dict[str, BranchSolution] = {}
+    for spec in branch_specs:
+        sol = integrate_branch(
+            rhs_factory(spec.sign, spec.sol_index),
+            spec.r_start,
+            spec.r_end,
+            spec.y0,
+            spec.r_eval,
+            method=spec.method,
+            rtol=spec.rtol,
+            atol=spec.atol,
+        )
+        branch_solutions[spec.name] = BranchSolution(
+            r=sol.r,
+            y=sol.y,
+            sign=spec.sign,
+            sol_index=spec.sol_index,
+        )
+    return branch_solutions
 
 
 def coupled_wronskian_matrix(
@@ -140,6 +207,65 @@ def diagonal_trace_from_fundamentals(
     return np.einsum("kia,ab,kib->k", f_plus, omega_inv, f_minus)
 
 
+def build_green_function(
+    branch_specs: Sequence[BranchSpec],
+    rhs_factory: Callable[[str, int], RhsFunc],
+    fundamental_builder: Callable[[dict[str, BranchSolution]], FundamentalSet],
+    r_grid: Array,
+    *,
+    weight_power: int = 3,
+    r_min_tail: float = 0.05,
+    r_max_tail_fraction: float = 0.9,
+) -> GreenFunctionResult:
+    """Generic coupled-channel Green-function builder.
+
+    The caller provides:
+      - branch_specs: the branch solves to perform
+      - rhs_factory: how to build the ODE RHS for each branch
+      - fundamental_builder: how to turn branch solutions into
+        plus/minus fundamental matrices
+
+    The shared steps handled here are:
+      - solve all branches
+      - assemble fundamentals
+      - compute raw/weighted Wronskian
+      - average the plateau and invert Omega
+      - contract the diagonal Green trace
+    """
+    branch_solutions = solve_branch_family(branch_specs, rhs_factory)
+    fundamentals = fundamental_builder(branch_solutions)
+
+    w_raw, w_scaled = weighted_wronskian_profile(
+        fundamentals.f_minus,
+        fundamentals.df_minus,
+        fundamentals.f_plus,
+        fundamentals.df_plus,
+        r_grid,
+        weight_power=weight_power,
+    )
+    omega, omega_inv, tail_bounds = average_wronskian_plateau(
+        w_scaled,
+        r_grid,
+        r_min_tail=r_min_tail,
+        r_max_tail_fraction=r_max_tail_fraction,
+    )
+    trace_diag = diagonal_trace_from_fundamentals(
+        fundamentals.f_plus,
+        fundamentals.f_minus,
+        omega_inv,
+    )
+    return GreenFunctionResult(
+        branch_solutions=branch_solutions,
+        fundamentals=fundamentals,
+        w_raw=w_raw,
+        w_scaled=w_scaled,
+        omega=omega,
+        omega_inv=omega_inv,
+        trace_diag=trace_diag,
+        tail_bounds=tail_bounds,
+    )
+
+
 def wronskian_trace_bundle(
     f_minus: Array,
     df_minus: Array,
@@ -173,11 +299,16 @@ def wronskian_trace_bundle(
 __all__ = [
     "Array",
     "BranchSolution",
+    "BranchSpec",
     "FundamentalMatrix",
+    "FundamentalSet",
+    "GreenFunctionResult",
     "integrate_branch",
+    "solve_branch_family",
     "coupled_wronskian_matrix",
     "weighted_wronskian_profile",
     "average_wronskian_plateau",
     "diagonal_trace_from_fundamentals",
+    "build_green_function",
     "wronskian_trace_bundle",
 ]
