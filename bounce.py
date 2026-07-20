@@ -70,7 +70,7 @@ def compute_bounce_for_pair(pot_prime,
 # ----------------------------------------------------------------------
 # CosmoTransitions tunneling: find all downward pairs of vacua and compute bounce for each pair
 # ----------------------------------------------------------------------
-def run_cosmotransitions_bounce(params=PARAMS_DEFAULT):
+def compute_bounce_for_all_pairs(params=PARAMS_DEFAULT, force_recompute=False, tag=""):                    
     # 1) Identify true and false vacuum
     minima = find_all_minima(params)
     n_min = len(minima)
@@ -91,6 +91,30 @@ def run_cosmotransitions_bounce(params=PARAMS_DEFAULT):
                 pairs.append((falseVacuumIndex, trueVacuumIndex))
                 
     for (falseVacuumIndex, trueVacuumIndex) in pairs:
+        filename = f"bounce_data_F{falseVacuumIndex}_T{trueVacuumIndex}_{tag}.npz"
+        if (not force_recompute) and os.path.exists(filename):
+            loaded = loadBounceData(falseVacuumIndex, trueVacuumIndex, tag)
+            loaded_params = np.asarray(loaded["params"], dtype=float)
+            if loaded_params.shape == params.shape and np.allclose(loaded_params, params, rtol=0.0, atol=1e-12):
+                result = {
+                    "falseVacuumIndex": int(loaded["false_index"]),
+                    "trueVacuumIndex": int(loaded["true_index"]),
+                    "params": loaded_params,
+                    "true_vacuum": loaded["true_vac"],
+                    "false_vacuum": loaded["false_vac"],
+                    "profile1D": None,
+                    "R_bounce": loaded["R"],
+                    "X_prime": loaded["X_bounce_prime"],
+                    "Y_prime": loaded["Y_bounce_prime"],
+                    "X_orig": loaded["X_bounce_orig"],
+                    "Y_orig": loaded["Y_bounce_orig"],
+                    "Action": float(loaded["S_CT"]),
+                }
+                print(f"\n[LOAD] Reusing saved bounce data: {filename}")
+                results.append(result)
+                continue
+            print(f"\n[RECOMPUTE] Cached params differ from requested params: {filename}")
+
         false_vac = vac_points[falseVacuumIndex]
         true_vac  = vac_points[trueVacuumIndex]
 
@@ -109,7 +133,7 @@ def run_cosmotransitions_bounce(params=PARAMS_DEFAULT):
             false_vac,
             true_vac,
         )
-        results.append({
+        result = {
             "falseVacuumIndex": falseVacuumIndex,
             "trueVacuumIndex": trueVacuumIndex,
             "params": params,
@@ -122,7 +146,10 @@ def run_cosmotransitions_bounce(params=PARAMS_DEFAULT):
             "X_orig": X_orig,
             "Y_orig": Y_orig,
             "Action": S_CT,
-        })
+        }
+        saveBounceData(result["falseVacuumIndex"], result["trueVacuumIndex"], result, tag)
+        results.append(result)
+    
     return results
 
 
@@ -147,7 +174,7 @@ def plot_bounce_profile(R_bounce, X_prime, Y_prime, S_CT):
 # save bounce data to file
 # ---------------------------------------------------------------------------
 def saveBounceData(falseVacuumIndex, trueVacuumIndex, result, tag=""):
-    filename = f"bounce_data_F{falseVacuumIndex}_T{trueVacuumIndex}.npz"
+    filename = f"bounce_data_F{falseVacuumIndex}_T{trueVacuumIndex}_{tag}.npz"
     if os.path.exists(filename):
         print(f"\n[SKIP] Bounce data already exists: {filename}")
         return
@@ -167,14 +194,22 @@ def saveBounceData(falseVacuumIndex, trueVacuumIndex, result, tag=""):
              )
     print(f"Saved bounce data to {filename}")
     
+# ---------------------------------------------------------------------------
+# load bounce data from file
+# ---------------------------------------------------------------------------
+def loadBounceData(falseVacuumIndex, trueVacuumIndex, tag=""):
+    filename = f"bounce_data_F{falseVacuumIndex}_T{trueVacuumIndex}_{tag}.npz"
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"Bounce data not found: {filename}")
+    return np.load(filename)
+
 
 if __name__ == "__main__":
-    results = run_cosmotransitions_bounce()
+    results = compute_bounce_for_all_pairs()
     for res in results:
         print("\n\nBounce result:")
         print("  params =", res["params"])
         print("  true_vacuum =", res["true_vacuum"])
         print("  false_vacuum =", res["false_vacuum"])
         print("  Action =", res["Action"])
-        saveBounceData(res["falseVacuumIndex"], res["trueVacuumIndex"], res)
         plot_bounce_profile(res["R_bounce"], res["X_prime"], res["Y_prime"], res["Action"])
