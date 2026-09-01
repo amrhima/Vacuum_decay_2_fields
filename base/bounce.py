@@ -16,8 +16,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from cosmoTransitions import pathDeformation as pd
-from G_F_.v2.potential import find_all_minima
-from .potential import PARAMS_DEFAULT, CTShiftedLiftedPotential, find_vacua_from_potential, V_numeric, gradV_numeric
+from base.potential import find_all_minima
+from base.potential import PARAMS_DEFAULT, CTShiftedLiftedPotential, find_vacua_from_potential, V_numeric, gradV_numeric
 
 
 # ---------------------------------------------------------------------------
@@ -25,9 +25,32 @@ from .potential import PARAMS_DEFAULT, CTShiftedLiftedPotential, find_vacua_from
 # ---------------------------------------------------------------------------
 def compute_bounce_for_pair(pot_prime,
                             false_vac_orig,
-                            true_vac_orig):
+                            true_vac_orig,
+                            falseVacuumIndex=None,
+                            trueVacuumIndex=None,
+                            force_recompute=False,
+                            tag=""):
     false_vac_orig = np.asarray(false_vac_orig, dtype=float)
     true_vac_orig  = np.asarray(true_vac_orig,  dtype=float)
+
+    # A pair call can use the same cache as the all-pairs driver when its
+    # vacuum indices are supplied.  The potential is still returned so the
+    # caller can use the exact shifted/rotated potential used for this pair.
+    if (falseVacuumIndex is not None and trueVacuumIndex is not None
+            and not force_recompute):
+        filename = f"bounce_data_F{falseVacuumIndex}_T{trueVacuumIndex}_{tag}.npz"
+        if os.path.exists(filename):
+            loaded = loadBounceData(falseVacuumIndex, trueVacuumIndex, tag)
+            loaded_params = np.asarray(loaded["params"], dtype=float)
+            if (loaded_params.shape == pot_prime.params.shape
+                    and np.allclose(loaded_params, pot_prime.params,
+                                    rtol=0.0, atol=1e-12)):
+                print(f"\n[LOAD] Reusing saved bounce data: {filename}")
+                return (pot_prime, None,
+                        loaded["R"], loaded["X_bounce_prime"],
+                        loaded["Y_bounce_prime"], loaded["X_bounce_orig"],
+                        loaded["Y_bounce_orig"], float(loaded["S_CT"]))
+            print(f"\n[RECOMPUTE] Cached params differ from requested params: {filename}")
 
     # φ' = L^T (φ - φ_F)
     false_prime = pot_prime.to_prime(false_vac_orig)   # should be ~0
@@ -59,7 +82,8 @@ def compute_bounce_for_pair(pot_prime,
     X_orig   = Phi_orig[:, 0]
     Y_orig   = Phi_orig[:, 1]
 
-    return (profile1D,
+    return (pot_prime,
+            profile1D,
             R, 
             X_prime, 
             Y_prime, 
@@ -103,6 +127,7 @@ def compute_bounce_for_all_pairs(params=PARAMS_DEFAULT, force_recompute=False, t
                     "true_vacuum": loaded["true_vac"],
                     "false_vacuum": loaded["false_vac"],
                     "profile1D": None,
+                    "pot_prime": CTShiftedLiftedPotential(params, loaded["false_vac"]),
                     "R_bounce": loaded["R"],
                     "X_prime": loaded["X_bounce_prime"],
                     "Y_prime": loaded["Y_bounce_prime"],
@@ -121,6 +146,7 @@ def compute_bounce_for_all_pairs(params=PARAMS_DEFAULT, force_recompute=False, t
         pot_prime = CTShiftedLiftedPotential(params, false_vac)
         
         (
+            pot_prime,
             profile1D, 
             R_bounce, 
             X_prime, 
@@ -132,6 +158,10 @@ def compute_bounce_for_all_pairs(params=PARAMS_DEFAULT, force_recompute=False, t
             pot_prime,
             false_vac,
             true_vac,
+            falseVacuumIndex=falseVacuumIndex,
+            trueVacuumIndex=trueVacuumIndex,
+            force_recompute=force_recompute,
+            tag=tag,
         )
         result = {
             "falseVacuumIndex": falseVacuumIndex,
@@ -140,6 +170,7 @@ def compute_bounce_for_all_pairs(params=PARAMS_DEFAULT, force_recompute=False, t
             "true_vacuum": true_vac,
             "false_vacuum": false_vac,
             "profile1D": profile1D,
+            "pot_prime": pot_prime,
             "R_bounce": R_bounce,
             "X_prime": X_prime,
             "Y_prime": Y_prime,
