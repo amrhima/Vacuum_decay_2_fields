@@ -3,7 +3,7 @@ from scipy.interpolate import CubicSpline
 import scipy.sparse as sp
 import numpy as np
 
-def build_M_thin_wall(n, R_bounce, X_prime_bounce, Y_prime_bounce, pot_lin,
+def M_thin_wall(n, R_bounce, X_prime_bounce, Y_prime_bounce, pot_lin,
                         N=2000, r_min=1e-4, r_max=None):
     """
     Build the thin-wall operator
