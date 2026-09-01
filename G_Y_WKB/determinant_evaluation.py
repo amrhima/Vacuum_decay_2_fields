@@ -202,6 +202,27 @@ def pick_mu_value(
         if rel_change < tol:
             return mu_curr, Q_curr
 
+    # On a finite radial interval the translational zero mode is generally
+    # lifted slightly because its exponentially decaying tail is nonzero at
+    # Rmax.  In that case Q(mu)=D(mu)/mu cannot form a plateau.  Estimate the
+    # reduced determinant from D'(0) instead, using the smallest mu values.
+    # This is only a fallback; the nonzero intercept is reported explicitly.
+    n_fit = min(6, len(results))
+    fit_mu = np.array([mu for mu, _ in results[-n_fit:]])
+    fit_D = np.array([mu * Q for mu, Q in results[-n_fit:]])
+    slope, intercept = np.polyfit(fit_mu, fit_D, 1)
+    fit_error = np.max(np.abs(
+        (slope * fit_mu + intercept - fit_D)
+    )) / max(np.max(np.abs(fit_D)), np.finfo(float).tiny)
+
+    if np.isfinite(slope) and slope != 0.0 and fit_error < 1e-2:
+        print(
+            "WARNING: no finite-mu plateau for the isolated zero mode; "
+            f"using D'(0) extrapolation (D(0)={intercept:.3e}, "
+            f"fit error={fit_error:.3e})."
+        )
+        return fit_mu[-1], slope
+
     return None, None
 
 

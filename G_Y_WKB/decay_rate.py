@@ -22,6 +22,14 @@ def full_log_determinant_ratio(
     Rmax,
     n_max
 ):
+    if r_min <= 0.0:
+        raise ValueError(
+            "r_min must be > 0; the Liouville-transformed radial equation "
+            "is singular at r=0."
+        )
+    if Rmax <= r_min:
+        raise ValueError("Rmax must be larger than r_min.")
+
     log_det_ratio = 0.0
 
     for n in range(n_max + 1):

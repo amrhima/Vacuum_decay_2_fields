@@ -15,7 +15,7 @@ from G_Y_WKB.decay_rate import full_log_determinant_ratio
 
 bounce_pairs = compute_bounce_for_all_pairs();
 bounce_pair = bounce_pairs[0]
-r_min = 0.0001
+r_min = max(float(bounce_pair["R_bounce"][0]), 1e-4)
 r_max = bounce_pair["R_bounce"][-1]
 
 R = full_log_determinant_ratio(

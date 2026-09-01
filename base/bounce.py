@@ -69,6 +69,18 @@ def compute_bounce_for_pair(pot_prime,
         maxiter=60,
         verbose=True,
         tunneling_init_params={"alpha": 3},  # O(4)
+        # Tighter endpoint accuracy is important for the n=1 translational
+        # zero mode used by the fluctuation determinant.
+        tunneling_findProfile_params={
+            "xtol": 1e-6,
+            "phitol": 1e-7,
+            "npoints": 1000,
+            "rmin": 1e-4,
+        },
+        deformation_deform_params={
+            "fRatioConv": 1e-3,
+            "maxiter": 2000,
+        },
     )
 
     R = Y.profile1D.R
@@ -178,7 +190,10 @@ def compute_bounce_for_all_pairs(params=PARAMS_DEFAULT, force_recompute=False, t
             "Y_orig": Y_orig,
             "Action": S_CT,
         }
-        saveBounceData(result["falseVacuumIndex"], result["trueVacuumIndex"], result, tag)
+        saveBounceData(
+            result["falseVacuumIndex"], result["trueVacuumIndex"], result,
+            tag, overwrite=force_recompute
+        )
         results.append(result)
     
     return results
@@ -204,9 +219,9 @@ def plot_bounce_profile(R_bounce, X_prime, Y_prime, S_CT):
 # ---------------------------------------------------------------------------
 # save bounce data to file
 # ---------------------------------------------------------------------------
-def saveBounceData(falseVacuumIndex, trueVacuumIndex, result, tag=""):
+def saveBounceData(falseVacuumIndex, trueVacuumIndex, result, tag="", overwrite=False):
     filename = f"bounce_data_F{falseVacuumIndex}_T{trueVacuumIndex}_{tag}.npz"
-    if os.path.exists(filename):
+    if os.path.exists(filename) and not overwrite:
         print(f"\n[SKIP] Bounce data already exists: {filename}")
         return
     np.savez(filename, 
