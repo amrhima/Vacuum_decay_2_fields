@@ -4,7 +4,7 @@ from bounce_profile_from_path import bounce_profile_from_path
 import numpy as np
 from path_deformation import path_deformation
 from plots import plot_tunneling_path
-from potential import V_numeric, gradV_numeric
+from base.potential import V_numeric, gradV_numeric
 
 # mu1, mu2, lam1, lam2, lam12, kappa
 params = (-1.0, -1.2, 0.4, 0.5, 0.35, 0.1)

@@ -1,5 +1,6 @@
-from sympy import Symbol, sympify, diff, simplify
 from __future__ import annotations
+
+from sympy import Symbol, sympify, diff, simplify
 from dataclasses import dataclass
 from typing import Callable, Tuple
 import numpy as np

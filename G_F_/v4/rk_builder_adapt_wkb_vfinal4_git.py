@@ -48,7 +48,7 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 import wkb_bessel_vfinal4_git as wkb
-from green_function_constructor import (
+from base.green_function_constructor import (
     BranchSpec,
     FundamentalSet,
     build_green_function,

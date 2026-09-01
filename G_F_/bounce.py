@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from cosmoTransitions import pathDeformation as pd
 from cosmoTransitions.tunneling1D import PotentialError
-from potential import (
+from base.potential import (
     PARAMS_DEFAULT,
     find_all_minima,
     CTShiftedLiftedPotential,   

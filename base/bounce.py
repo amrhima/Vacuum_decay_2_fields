@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 from cosmoTransitions import pathDeformation as pd
 from G_F_.v2.potential import find_all_minima
-from potential import PARAMS_DEFAULT, CTShiftedLiftedPotential, find_vacua_from_potential, V_numeric, gradV_numeric
+from .potential import PARAMS_DEFAULT, CTShiftedLiftedPotential, find_vacua_from_potential, V_numeric, gradV_numeric
 
 
 # ---------------------------------------------------------------------------

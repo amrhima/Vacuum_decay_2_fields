@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D  
-from potential import H_numeric
+from base.potential import H_numeric
 
 # potential.py defines the original potential and it's automatic Hessian is H_numeric
 

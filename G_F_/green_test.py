@@ -1,7 +1,7 @@
 import glob
 import numpy as np
 import matplotlib.pyplot as plt
-from potential import CTShiftedLiftedPotential  
+from base.potential import CTShiftedLiftedPotential  
 
 # Green-equation test for the RK Green function G_rk(r,r'):
 # L_r G(r,r') = δ(r - r') / r'^3 * I_2

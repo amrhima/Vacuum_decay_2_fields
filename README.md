@@ -4,6 +4,34 @@ Description:
 
 A Python project for computing O(4)-bounce solutions and Green's functions for a 2-field potential using the Runge-Kutta (RK) method with linear field redefinition.
 
+## Installation
+
+From the project root, install the project in editable mode:
+
+```bash
+cd /Users/amr/Desktop/Vacuum_decay_2_fields
+python3 -m pip install --no-deps --no-build-isolation -e .
+```
+
+The editable installation makes the shared modules available through the
+`base` package, for example:
+
+```python
+from base.fluctuation_operator import make_V_matrix
+```
+
+To run the Gelfand-Yaglom/WKB dummy test:
+
+```bash
+python3 -m G_Y_WKB.dummy_test
+```
+
+Alternatively, when the current directory is the project root:
+
+```bash
+python3 G_Y_WKB/dummy_test.py
+```
+
 Overview:
 
 This project implements a computational pipeline for:
@@ -135,4 +163,3 @@ Test Files:
   Apply the full radial fluctuation operator to G_rk and check if the delta function appears on the right hand side. To see that, used centered finite differences to approximate the derivatives of the Green's function and a simple test function, which is phi[r] = 1, for all r. Then multiplied the whole equation by r^3 and integrated over r from 0 to infinity. 
 - Output:
   On the grid, the integral becomes a sum over k and for each fixed r' the test results are stored in S_slice. Plots for S_slice are shown. For a sufficient result this should equal to the unit matrix. Also the average is taken, which is stored in S_avg. 
-

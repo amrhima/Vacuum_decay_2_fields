@@ -1,7 +1,7 @@
 import glob
 import numpy as np
 from scipy.special import iv, ivp, kv, kvp
-from potential import CTShiftedLiftedPotential
+from base.potential import CTShiftedLiftedPotential
 
 # ================================================================
 # 1. Fluctuation data in PRIMED coordinates for one bounce
