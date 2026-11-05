@@ -1,0 +1,38 @@
+# pipeline_rk_vgeneral_phi_v2 -- dependencies.
+#
+# Install into a fresh virtual environment (README, section 1, "Install"):
+#     python3 -m venv env
+#     source env/bin/activate
+#     python -m pip install --upgrade pip
+#     python -m pip install -r requirements.txt
+# Any interpreter with these packages works; name it with PY=<python> when
+# running run_vgeneral_phi_v2_production.sh.
+#
+# Any python >= 3.11 (matplotlib 3.11 needs it).  Tested with Python 3.13.10
+# (numpy 2.5.3, scipy 1.18.1, sympy 1.14.0, matplotlib 3.11.2,
+# cosmoTransitions 2.0.7) and with Python 3.14.7 (numpy 2.5.4, scipy 1.18.1,
+# sympy 1.14.0, matplotlib 3.11.2, cosmoTransitions 2.0.7).
+#
+# numpy>=2.0 is a REAL floor: the pipeline integrates with np.trapezoid, which
+# numpy 1.x does not have.
+numpy>=2.0
+# HARD dependency: the ODE and boundary-value solvers, root finders, splines,
+# quadratures, Bessel functions and the Hurwitz zeta function, among others.
+# A scipy that imports as `scipy` but fails on `import scipy.integrate`
+# (broken compiled LAPACK) is NOT usable -- the driver's preflight tests
+# exactly that submodule.  scipy 1.13 is the first release built for numpy 2.
+scipy>=1.13
+# HARD dependency: computation/potential_vgeneral_phi_v2.py builds the N-field
+# potential symbolically (sympy.lambdify) and is imported by every stage.
+sympy>=1.10
+# HARD dependency: stage 0 draws the bounce gallery on every run.  Every picture
+# is laid out for the way matplotlib 3.11 sets mathematical text (sub- and
+# superscripts, signs).
+matplotlib>=3.11
+# HARD dependency: the bounce level solves the O(4) bounce with
+# CosmoTransitions (pathDeformation / SingleFieldInstanton) as its SEED.
+# Only the later stages, run on an existing bounce npz, can do without it
+# (the imports are function-local in the bounce stage).  cosmoTransitions 2.0.7
+# is the first release that runs with current scipy (2.0.2-2.0.6 call
+# scipy.integrate.cumtrapz and simps, which scipy has removed).
+cosmotransitions>=2.0.7
