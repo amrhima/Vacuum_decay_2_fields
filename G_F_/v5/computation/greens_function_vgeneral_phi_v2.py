@@ -593,11 +593,11 @@ class GreensFunction:
         integrand_Gbar_minus_fv = integrand_Gbar_1 + integrand_Gbar_2 + integrand_delta_geq3
         integrand_Gbar_fv = w_fv.sum(axis=0)      # A = 1: the weight summed over channels
         return {
-            'Gbar_minus_fv': deg * np.trapezoid(integrand_Gbar_minus_fv, r),
-            'Gbar_1': deg * np.trapezoid(integrand_Gbar_1, r),
-            'Gbar_2': deg * np.trapezoid(integrand_Gbar_2, r),
-            'delta_geq3': deg * np.trapezoid(integrand_delta_geq3, r),
-            'Gbar_fv': deg * np.trapezoid(integrand_Gbar_fv, r),
+            'Gbar_minus_fv': deg * np.trapz(integrand_Gbar_minus_fv, r),
+            'Gbar_1': deg * np.trapz(integrand_Gbar_1, r),
+            'Gbar_2': deg * np.trapz(integrand_Gbar_2, r),
+            'delta_geq3': deg * np.trapz(integrand_delta_geq3, r),
+            'Gbar_fv': deg * np.trapz(integrand_Gbar_fv, r),
             'det_C': float(np.linalg.det(branch_objects['C'])),
             'integrands': {
                 'r': r,
@@ -633,7 +633,7 @@ class GreensFunction:
         nu = float(n) + 1.0
         r = self._radial_grid(float(s2))
         w_fv = self._fv_weight(nu, s2, r)
-        return float(nu * nu * np.trapezoid(w_fv.sum(axis=0), r))
+        return float(nu * nu * np.trapz(w_fv.sum(axis=0), r))
 
 # ---------------------------------------------------------------------------
 def _run_slice(engine, args, provenance, s2):

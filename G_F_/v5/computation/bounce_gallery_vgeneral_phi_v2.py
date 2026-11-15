@@ -192,7 +192,7 @@ def plot_bounce(b, minima, iF, iT, fields, params, out_dir,
     # left-aligned title, then one colour per primed component
     ax1.legend(loc='upper left', bbox_to_anchor=(1.02, 1.0), borderaxespad=0.0,
                title=rf'$S_E$ = {S_E:.4f}',
-               alignment='left', frameon=True,
+               frameon=True,
                edgecolor=('crimson' if special else 'gray'))
     pictures = [('profiles', fig_profiles)]
 

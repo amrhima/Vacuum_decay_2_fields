@@ -168,7 +168,7 @@ def eigenfunction_from_null_vectors(engine, n, s2_star, r_grid, r_W):
     # -- 4. normalise in the r^3 dr measure (trapezoid rule) and fix the sign
     #       the SVD leaves open: the largest component of u at the matching
     #       radius is made positive (the pole terms u u do not depend on it)
-    norm = np.sqrt(np.trapezoid(r_grid**3 * np.sum(psi**2, axis=1), r_grid))
+    norm = np.sqrt(np.trapz(r_grid**3 * np.sum(psi**2, axis=1), r_grid))
     u = psi / norm * np.sign(psi[i_match_radius, i_match_channel])
     return dict(u=u, match_dev=match_dev, null_quality=null_quality)
 
@@ -179,7 +179,7 @@ def translation_mode(background, r_grid):
     mode with radial part phi_b'(r) -- scipy CubicSpline derivative of the
     stored profile + one trapezoid quadrature for the r^3 dr norm."""
     dphi = CubicSpline(background['R'], background['phi_b'], axis=0)(r_grid, nu=1)
-    norm = np.sqrt(np.trapezoid(r_grid**3 * np.sum(dphi**2, axis=1), r_grid))
+    norm = np.sqrt(np.trapz(r_grid**3 * np.sum(dphi**2, axis=1), r_grid))
     return dphi / norm
 
 
@@ -235,7 +235,7 @@ def main():
         npz_payload[f'match_dev_n{n}'] = float(mode['match_dev'])
         if n == 1:
             u_dphi = translation_mode(background, r_grid)
-            overlap = float(np.trapezoid(r_grid**3 * np.sum(u * u_dphi, axis=1), r_grid))
+            overlap = float(np.trapz(r_grid**3 * np.sum(u * u_dphi, axis=1), r_grid))
             npz_payload['overlap_dphi_n1'] = abs(overlap)
             print(f'[CHECK n=1] overlap of u_1 with the normalised phi_b\' = '
                   f'{abs(overlap):.6f} (near 1 for a translation zero mode)')

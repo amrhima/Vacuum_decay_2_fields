@@ -107,10 +107,10 @@ def analytic_moments(R, tr_U_int3):
     """
     R = np.asarray(R, float)
     tr_U_int3 = np.asarray(tr_U_int3, float)
-    A3 = np.trapezoid(R**5 * tr_U_int3, R) / 16.0
-    A3_scale = np.trapezoid(R**5 * np.abs(tr_U_int3), R) / 16.0
-    baacke_c = -np.trapezoid(R**3 * tr_U_int3, R) / 48.0
-    baacke_c_scale = np.trapezoid(R**3 * np.abs(tr_U_int3), R) / 48.0
+    A3 = np.trapz(R**5 * tr_U_int3, R) / 16.0
+    A3_scale = np.trapz(R**5 * np.abs(tr_U_int3), R) / 16.0
+    baacke_c = -np.trapz(R**3 * tr_U_int3, R) / 48.0
+    baacke_c_scale = np.trapz(R**3 * np.abs(tr_U_int3), R) / 48.0
     return dict(A3=float(A3), A3_scale=float(A3_scale), baacke_c=float(baacke_c),
                 baacke_c_scale=float(baacke_c_scale))
 

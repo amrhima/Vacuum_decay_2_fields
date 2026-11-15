@@ -167,9 +167,9 @@ def _shape_moments(nu_values, s2_cutoff, m_min2, R, tr_U_int3):
                   + (s2_cutoff + m_min2) * R**2)          # (waves, radii)
     integrand_r5_chi5 = R**5 * tr_U_int3 * chi**-5
     integrand_r7_chi7 = R**7 * tr_U_int3 * chi**-7
-    return (np.trapezoid(integrand_r5_chi5, R, axis=-1),
-            np.trapezoid(integrand_r7_chi7, R, axis=-1),
-            np.trapezoid(np.abs(integrand_r7_chi7), R, axis=-1))
+    return (np.trapz(integrand_r5_chi5, R, axis=-1),
+            np.trapz(integrand_r7_chi7, R, axis=-1),
+            np.trapz(np.abs(integrand_r7_chi7), R, axis=-1))
 
 
 def high_s2_remainder_ratios(nu_values, s2_cutoff, L2_grid, m_min2, R, tr_U_int3):
