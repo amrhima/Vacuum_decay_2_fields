@@ -69,10 +69,39 @@ def gradV_numeric(X, params: Sequence[float] | None = None) -> np.ndarray:
     return g
 
 
-def H_numeric(point: Sequence[float], params: Sequence[float] | None = None) -> np.ndarray:
+def H_numeric(point, params: Sequence[float] | None = None) -> np.ndarray:
+    """Evaluate the Hessian at one point or at a batch of points.
+
+    Parameters
+    ----------
+    point : array_like
+        A single point with shape ``(2,)`` or points with shape ``(..., 2)``.
+
+    Returns
+    -------
+    numpy.ndarray
+        Shape ``(2, 2)`` for one point, or ``(..., 2, 2)`` for batched
+        points.
+    """
     p = _unpack_params(params)
-    x_val, y_val = float(point[0]), float(point[1])
-    return np.array(H_func(x_val, y_val, *p), dtype=float)
+    point = np.asarray(point, dtype=float)
+
+    if point.ndim == 0 or point.shape[-1] != 2:
+        raise ValueError(
+            "point must have shape (2,) or (..., 2); "
+            f"got {point.shape}"
+        )
+
+    x_val = point[..., 0]
+    y_val = point[..., 1]
+    hessian = np.asarray(H_func(x_val, y_val, *p), dtype=float)
+
+    # SymPy's lambdified matrix puts the matrix axes first when x_val/y_val
+    # are arrays: (2, 2, ...). Move them to the end for (..., 2, 2).
+    if point.ndim > 1:
+        hessian = np.moveaxis(hessian, (0, 1), (-2, -1))
+
+    return hessian
 
 
 # ---------------------------------------------------------------------------
