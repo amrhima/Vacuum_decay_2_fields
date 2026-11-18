@@ -168,17 +168,3 @@ def wkb_subtracted_one_loop_action(
     # This is the finite high-wave tail that was missing from the previous
     # finite-l implementation.
     return delta_S_reg + wkb_tail
-# -------------------------------------------------
-
-def decay_rate(S_bounce, delta_S_reg):
-    zero_mode_jacobian = (S_bounce / (2.0 * np.pi))**2
-
-    determinant_prefactor = np.exp(-delta_S_reg)
-
-    return (
-        0.5
-        *
-        zero_mode_jacobian
-        * determinant_prefactor
-        * np.exp(-S_bounce)
-    )
