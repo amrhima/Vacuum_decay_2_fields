@@ -2,25 +2,25 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 
-def regular_liouville_initial_conditions(n, r_min, n_fields=2):
+def regular_liouville_initial_conditions(l, r_min, n_fields=2):
     """
     Regular small-r boundary conditions for the Liouville-transformed
     O(4) radial equation.
 
     The regular solution behaves as
 
-        Y(r) ~ r^(n + 3/2) I.
+        Y(r) ~ r^(l + 3/2) I.
 
     Since an overall constant right-normalization of the fundamental matrix
     cancels between bounce and false-vacuum GY determinants, we rescale by
-    r_min^(-(n+3/2)) and use the numerically better-conditioned equivalent:
+    r_min^(-(l+3/2)) and use the numerically better-conditioned equivalent:
 
         Y(r_min)  = I
-        Y'(r_min) = (n + 3/2)/r_min * I.
+        Y'(r_min) = (l + 3/2)/r_min * I.
 
     Bounce and FV must use exactly the same normalization.
     """
-    power = n + 1.5
+    power = l + 1.5
 
     Y_initial = np.eye(n_fields)
     Yp_initial = (power / r_min) * np.eye(n_fields)
@@ -28,11 +28,11 @@ def regular_liouville_initial_conditions(n, r_min, n_fields=2):
     return Y_initial, Yp_initial
 
 
-def solve_GY_matrix(mu, n, r_min, Rmax, V_matrix):
+def solve_GY_matrix(mu, l, r_min, Rmax, V_matrix):
     """
     Solve
 
-        (M_tilde_n + mu) Y = 0
+        (M_tilde_l + mu) Y = 0
 
     i.e.
 
@@ -57,7 +57,7 @@ def solve_GY_matrix(mu, n, r_min, Rmax, V_matrix):
         return np.concatenate([Yp.ravel(), Ypp.ravel()])
 
     Y_initial, Yp_initial = regular_liouville_initial_conditions(
-        n, r_min, n_fields=n_fields
+        l, r_min, n_fields=n_fields
     )
 
     z0 = np.concatenate([Y_initial.ravel(), Yp_initial.ravel()])
@@ -78,17 +78,17 @@ def solve_GY_matrix(mu, n, r_min, Rmax, V_matrix):
     return Y_R
 
 
-def raw_GY_ratio(mu, n, r_min, Rmax, V_matrix, V_matrix_fv):
+def raw_GY_ratio(mu, l, r_min, Rmax, V_matrix, V_matrix_fv):
     """
     Unprojected radial GY determinant ratio
 
-        D_n(mu) =
+        D_l(mu) =
             det Y_bounce(Rmax; mu) / det Y_FV(Rmax; mu).
 
     The common Liouville factor and common origin normalization cancel.
     """
-    Y = solve_GY_matrix(mu, n, r_min, Rmax, V_matrix)
-    Y_fv = solve_GY_matrix(mu, n, r_min, Rmax, V_matrix_fv)
+    Y = solve_GY_matrix(mu, l, r_min, Rmax, V_matrix)
+    Y_fv = solve_GY_matrix(mu, l, r_min, Rmax, V_matrix_fv)
 
     sign_Y, logabs_Y = np.linalg.slogdet(Y)
     sign_FV, logabs_FV = np.linalg.slogdet(Y_fv)
@@ -108,7 +108,7 @@ def isolated_mode_factor(mu, isolated_eigenvalues):
 
     IMPORTANT:
     In a partial-wave calculation, list only distinct RADIAL eigenvalues in
-    this n-sector.  For the O(4) translational sector n=1 there is one radial
+    this l-sector.  For the O(4) translational sector l=1 there is one radial
     zero eigenvalue; its angular degeneracy d_1 = 4 is applied afterwards,
     not by putting four zeros in this list.
     """
@@ -122,7 +122,7 @@ def isolated_mode_factor(mu, isolated_eigenvalues):
 
 def determinant_ratio(
     mu,
-    n,
+    l,
     r_min,
     Rmax,
     V_matrix,
@@ -133,14 +133,14 @@ def determinant_ratio(
     Radial GY determinant ratio with selected radial modes projected out:
 
         D_reduced(mu) =
-            D_n(mu) / prod_m (lambda_m + mu).
+        D_l(mu) / prod_m (lambda_m + mu).
 
-    For the n=1 translational zero mode use isolated_eigenvalues=(0.0,).
+    For the l=1 translational zero mode use isolated_eigenvalues=(0.0,).
     If the negative mode is left inside the determinant, do not list it.
     """
     D_mu = raw_GY_ratio(
         mu,
-        n,
+        l,
         r_min,
         Rmax,
         V_matrix,
@@ -153,7 +153,7 @@ def determinant_ratio(
 
 
 def pick_mu_value(
-    n,
+    l,
     r_min,
     Rmax,
     V_matrix,
@@ -176,7 +176,7 @@ def pick_mu_value(
     for mu in mus:
         Q_mu = determinant_ratio(
             mu,
-            n,
+            l,
             r_min,
             Rmax,
             V_matrix,
@@ -226,6 +226,6 @@ def pick_mu_value(
     return None, None
 
 
-def partial_wave_degeneracy(n):
-    """O(4) scalar harmonic degeneracy d_n = (n+1)^2."""
-    return (n + 1)**2
+def partial_wave_degeneracy(l):
+    """O(4) scalar harmonic degeneracy d_l = (l+1)^2."""
+    return (l + 1)**2

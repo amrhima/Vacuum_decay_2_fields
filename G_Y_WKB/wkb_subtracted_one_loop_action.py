@@ -1,6 +1,6 @@
 from G_Y_WKB.WKB_terms import (
     build_W_profile,
-    estimate_bubbledet_wkb_tail,
+    estimate_wkb_tail,
 )
 import numpy as np
 
@@ -23,8 +23,8 @@ def wkb_subtracted_one_loop_action(
     pot,
     r_min,
     Rmax,
-    n_max,
-    wkb_start_n=2,
+    l_max,
+    wkb_start_l=2,
 ):
     if r_min <= 0.0:
         raise ValueError(
@@ -35,16 +35,16 @@ def wkb_subtracted_one_loop_action(
     if Rmax <= r_min:
         raise ValueError("Rmax must be larger than r_min.")
 
-    if n_max < 0:
-        raise ValueError("n_max must be non-negative.")
+    if l_max < 0:
+        raise ValueError("l_max must be non-negative.")
 
-    if wkb_start_n < 2:
-        raise ValueError("wkb_start_n must be at least 2.")
+    if wkb_start_l < 2:
+        raise ValueError("wkb_start_l must be at least 2.")
 
-    if wkb_start_n > n_max + 1:
+    if wkb_start_l > l_max + 1:
         raise ValueError(
-            "wkb_start_n must be no larger than n_max + 1; "
-            f"got wkb_start_n={wkb_start_n}, n_max={n_max}."
+            "wkb_start_l must be no larger than l_max + 1; "
+            f"got wkb_start_l={wkb_start_l}, l_max={l_max}."
         )
 
     # -----------------------------------------------------
@@ -59,24 +59,24 @@ def wkb_subtracted_one_loop_action(
         pot=pot,
     )
 
-    wkb_by_n, wkb_tail = estimate_bubbledet_wkb_tail(
+    wkb_by_l, wkb_tail = estimate_wkb_tail(
         R_bounce=R_bounce,
         W_profile=W_profile,
         H_fv=H_fv,
-        l_max=n_max + 1,
-        start_l=wkb_start_n,
+        l_max=l_max + 1,
+        start_l=wkb_start_l,
     )
 
     delta_S_reg = 0.0
 
-    for n in range(n_max + 1):
+    for l in range(l_max + 1):
 
         # -------------------------------------------------
         # Construct radial operators
         # -------------------------------------------------
 
         V_bounce = make_V_matrix(
-            n,
+            l,
             R_bounce,
             X_bounce,
             Y_bounce,
@@ -84,7 +84,7 @@ def wkb_subtracted_one_loop_action(
         )
 
         V_fv = make_V_matrix_fv(
-            n,
+            l,
             phi_fv,
             pot,
         )
@@ -93,13 +93,13 @@ def wkb_subtracted_one_loop_action(
         # Zero modes
         # -------------------------------------------------
 
-        if n == 1:
+        if l == 1:
             # Remove the one radial zero eigenvalue.
             # The angular degeneracy d_1 = 4 accounts for
             # the four translational zero modes.
 
-            mu_best, D_n = pick_mu_value(
-                n=n,
+            mu_best, D_l = pick_mu_value(
+                l=l,
                 r_min=r_min,
                 Rmax=Rmax,
                 V_matrix=V_bounce,
@@ -107,19 +107,19 @@ def wkb_subtracted_one_loop_action(
                 isolated_eigenvalues=(0.0,),
             )
 
-            if D_n is None:
+            if D_l is None:
                 raise RuntimeError(
-                    "No stable mu plateau found for the n=1 zero mode."
+                    "No stable mu plateau found for the l=1 zero mode."
                 )
 
         else:
-            # The n=0 negative mode is retained in the
+            # The l=0 negative mode is retained in the
             # determinant. Its sign is removed below when
-            # forming log(abs(D_n)).
+            # forming log(abs(D_l)).
 
-            D_n = determinant_ratio(
+            D_l = determinant_ratio(
                 mu=0.0,
-                n=n,
+                l=l,
                 r_min=r_min,
                 Rmax=Rmax,
                 V_matrix=V_bounce,
@@ -127,46 +127,46 @@ def wkb_subtracted_one_loop_action(
                 isolated_eigenvalues=(),
             )
 
-        if not np.isfinite(D_n):
+        if not np.isfinite(D_l):
             raise RuntimeError(
-                f"Non-finite determinant ratio obtained for n={n}: {D_n}"
+                f"Non-finite determinant ratio obtained for l={l}: {D_l}"
             )
 
-        if D_n == 0.0:
+        if D_l == 0.0:
             raise RuntimeError(
-                f"Zero determinant ratio obtained for n={n}."
+                f"Zero determinant ratio obtained for l={l}."
             )
 
         # -------------------------------------------------
         # WKB subtraction and angular degeneracy
         # -------------------------------------------------
 
-        j = n + 1
-        d_n = partial_wave_degeneracy(n)
+        j = l + 1
+        d_l = partial_wave_degeneracy(l)
 
-        log_D_n = np.log(abs(D_n))
+        log_D_l = np.log(abs(D_l))
 
         # The low partial waves are treated exactly.  BubbleDet subtracts its
         # higher-order WKB approximation only from the high-wave remainder.
-        if n >= wkb_start_n:
-            log_D_n_subtracted = log_D_n - wkb_by_n[n]
+        if l >= wkb_start_l:
+            log_D_l_subtracted = log_D_l - wkb_by_l[l]
         else:
-            log_D_n_subtracted = log_D_n
+            log_D_l_subtracted = log_D_l
 
-        delta_S_reg += 0.5 * d_n * log_D_n_subtracted
+        delta_S_reg += 0.5 * d_l * log_D_l_subtracted
 
         print(
-            f"n={n:3d}, "
+            f"l={l:3d}, "
             f"j={j:3d}, "
-            f"d_n={d_n:4d}, "
-            f"D_n={D_n:.12e}, "
-            f"log_D_n={log_D_n:+.12e}, "
-            f"subtracted={log_D_n_subtracted:+.12e}, "
+            f"d_l={d_l:4d}, "
+            f"D_l={D_l:.12e}, "
+            f"log_D_l={log_D_l:+.12e}, "
+            f"subtracted={log_D_l_subtracted:+.12e}, "
         )
 
-    # Add back the WKB approximation summed from wkb_start_n to infinity.
+    # Add back the WKB approximation summed from wkb_start_l to infinity.
     # This is the finite high-wave tail that was missing from the previous
-    # finite-n implementation.
+    # finite-l implementation.
     return delta_S_reg + wkb_tail
 # -------------------------------------------------
 

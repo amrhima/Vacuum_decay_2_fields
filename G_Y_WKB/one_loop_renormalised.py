@@ -1,7 +1,7 @@
 import numpy as np
-from scipy.integrate import simpson
 from G_Y_WKB.WKB_terms import build_W_profile, calculate_A1, calculate_A3
 from G_Y_WKB.wkb_subtracted_one_loop_action import wkb_subtracted_one_loop_action
+from G_Y_WKB.renormalize import msbar_local_term_4d
 
 def dm_renormalized_one_loop_action(
     R_bounce,
@@ -11,9 +11,9 @@ def dm_renormalized_one_loop_action(
     pot,
     r_min,
     Rmax,
-    n_max,
+    l_max,
     mu_ren,
-    wkb_start_n=2,
+    wkb_start_l=2,
 ):
 
     # -----------------------------------------------------
@@ -30,14 +30,6 @@ def dm_renormalized_one_loop_action(
 
     # W_profile[k] is assumed to be a 2x2 matrix at R_bounce[k]
 
-    tr_W = np.trace(W_profile, axis1=1, axis2=2)
-
-    # tr[W^2 + 2 H_fv W]
-    tr_W2_plus_2M2W = np.array([
-        np.trace(W @ W + 2.0 * H_fv @ W)
-        for W in W_profile
-    ])
-
     r = np.asarray(R_bounce)
 
     # -----------------------------------------------------
@@ -52,32 +44,15 @@ def dm_renormalized_one_loop_action(
         pot=pot,
         r_min=r_min,
         Rmax=Rmax,
-        n_max=n_max,
-        wkb_start_n=wkb_start_n)
+        l_max=l_max,
+        wkb_start_l=wkb_start_l)
 
-    # -----------------------------------------------------
-    # Finite local remainder
-    # -----------------------------------------------------
-
-    # r^3 log(r) -> 0 at r=0.
-    # Avoid evaluating log(0) numerically.
-    log_factor = np.zeros_like(r)
-
-    mask = r > 0.0
-    log_factor[mask] = (
-        np.log(mu_ren * r[mask] / 2.0)
-        + np.euler_gamma
-        + 1.0
-    )
-
-    finite_local_term = (
-        -1.0 / 16.0
-        * simpson(
-            r**3
-            * tr_W2_plus_2M2W
-            * log_factor,
-            x=r,
-        )
+    # Explicit d=4 MS-bar local finite remainder.
+    finite_local_term = msbar_local_term_4d(
+        R=r,
+        W_profile=W_profile,
+        H_fv=H_fv,
+        mu_ren=mu_ren,
     )
 
     delta_S_reg = (

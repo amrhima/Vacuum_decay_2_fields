@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.integrate import simpson
 from cosmoTransitions.helper_functions import deriv14
+from G_Y_WKB.renormalize import wkb_sum_weights_4d
 
 
 def build_W_profile(
@@ -131,7 +132,7 @@ def calculate_A3(R_bounce, W_profile, H_fv):
     return -0.125 * simpson(integrand, x=r)
 
 
-def estimate_bubbledet_wkb_tail(
+def estimate_wkb_tail(
     R_bounce,
     W_profile,
     H_fv,
@@ -152,9 +153,9 @@ def estimate_bubbledet_wkb_tail(
     Parameters
     ----------
     R_bounce : array_like, shape (N,)
-    W_profile : array_like, shape (N, n, n)
+    W_profile : array_like, shape (N, n_fields, n_fields)
         ``H_bounce - H_false``.
-    H_fv : array_like, shape (n, n)
+    H_fv : array_like, shape (n_fields, n_fields)
         False-vacuum Hessian.
     l_max : int
         Number of WKB entries to return, indexed by ``l=0,...,l_max-1``.
@@ -266,16 +267,10 @@ def estimate_bubbledet_wkb_tail(
         + l9_int / j**9
     )
 
-    # BubbleDet's d=4 infinite sums for 1/2 * d_l * j^-p,
-    # with d_l = (l+1)^2.  The p=1 and p=3 terms are the MS-bar divergent
-    # sums assigned their dimensional-regularisation finite values there.
-    order_sums = np.array([
-        -3.0,
-        -1.5,
-        0.07705690315959429,
-        0.005677755143369926,
-        0.0005367773819228268,
-    ])
+    # The regulator, MS-bar finite parts, and convergent zeta sums are
+    # defined explicitly in renormalize.py. The determinant factor 1/2 is
+    # applied here, after the angular sums.
+    order_sums = wkb_sum_weights_4d(l_start=2)
     coeffs = np.array([l1_int, l3_int, l5_int, l7_int, l9_int])
     total_wkb = 0.5 * float(np.dot(coeffs, order_sums))
 
