@@ -145,10 +145,12 @@ def estimate_wkb_tail(
     ``j**-9`` (``j = l + 1``).  It returns the per-wave WKB approximation and
     the analytically summed WKB contribution from ``start_l`` to infinity.
 
-    The current implementation is intended for BubbleDet-compatible,
-    decoupled backgrounds.  For a matrix background, each diagonal channel is
-    treated as an independent scalar.  Nonzero off-diagonal insertions are
-    rejected because BubbleDet's scalar WKB formula does not apply to them.
+    The coefficients are the matrix generalisation of BubbleDet's scalar
+    expansion.  Scalar products are promoted to matrix products under a
+    trace; this is important because the field-space matrices need not
+    commute.  The result therefore supports a genuinely coupled Hessian,
+    while reducing exactly to the previous channel-by-channel expression when
+    the insertion is diagonal.
 
     Parameters
     ----------
@@ -185,13 +187,6 @@ def estimate_wkb_tail(
     if start_l < 0 or start_l > l_max:
         raise ValueError("start_l must satisfy 0 <= start_l <= l_max.")
 
-    offdiag = W.copy()
-    offdiag[:, range(H_fv.shape[0]), range(H_fv.shape[0])] = 0.0
-    if np.max(np.abs(offdiag)) > 1e-10:
-        raise ValueError(
-            "BubbleDet-style scalar WKB tail requires a diagonal Hessian."
-        )
-
     dim = H_fv.shape[0]
     l1_int = 0.0
     l3_int = 0.0
@@ -199,63 +194,102 @@ def estimate_wkb_tail(
     l7_int = 0.0
     l9_int = 0.0
 
-    for a in range(dim):
-        dw = W[:, a, a]
-        m0_sq = H_fv[a, a]
-        dwr = deriv14(dw, r)
-        d2wr = deriv14(dwr, r)
-        d3wr = deriv14(d2wr, r)
+    def mm(A, B):
+        """Matrix product for every radial sample."""
+        return np.einsum("rij,rjk->rik", A, B)
 
-        l1 = 0.5 * r * dw
-        l3 = -0.125 * r**3 * dw * (dw + 2.0 * m0_sq)
-        l5 = (
-            1.0 / 16.0 * r**5 * dw
-            * (3.0 * m0_sq**2 + 3.0 * m0_sq * dw + dw**2)
-            + 1.0 / 32.0 * (
-                r**5 * dwr**2 - 4.0 * dw**2 * r**3
-                - 8.0 * dw * r**3 * m0_sq
-            )
-        )
-        l7 = (
-            -5.0 / 128.0 * r**7 * dw * (2.0 * m0_sq + dw)
-            * (2.0 * m0_sq**2 + 2.0 * dw * m0_sq + dw**2)
-            + 60.0 / 64.0 * m0_sq**2 * r**5 * dw
-            + 1.0 / 64.0 * (20.0 * dw**3 * r**5 - 5.0 * r**7 * dw * dwr**2)
-            - 32.0 / 128.0 * r**3 * dw * m0_sq
-            + 1.0 / 128.0 * (
-                -r**7 * d2wr**2 + 13.0 * r**5 * dwr**2
-                - 16.0 * r**3 * dw**2
-            )
-        )
-        l9 = (
-            7.0 / 256.0 * r**9 * dw
-            * (5.0 * m0_sq**4 + 10.0 * m0_sq**3 * dw
-               + 10.0 * m0_sq**2 * dw**2 + 5.0 * m0_sq * dw**3 + dw**4)
-            - 560.0 / 256.0 * m0_sq**3 * r**7 * dw
-            + 35.0 / 256.0 * m0_sq**2 * (r**9 * dwr**2 - 24.0 * r**7 * dw**2)
-            + 70.0 / 256.0 * m0_sq * (r**9 * dwr**2 * dw - 8.0 * r**7 * dw**3)
-            + 35.0 / 256.0 * (r**9 * dwr**2 * dw**2 - 4.0 * r**7 * dw**4)
-            + 1008.0 / 256.0 * m0_sq**2 * r**5 * dw
-            + 7.0 / 256.0 * m0_sq * (
-                r**9 * d2wr**2 - 31.0 * r**7 * dwr**2 + 144.0 * r**5 * dw**2
-            )
-            + 7.0 / 256.0 * (
-                -5.0 * r**8 * dwr**3
-                + dw * (r**9 * d2wr**2 - 31.0 * r**7 * dwr**2)
-                + 48.0 * r**5 * dw**3
-            )
-            - 64.0 / 256.0 * m0_sq * r**3 * dw
-            + 1.0 / 512.0 * (
-                r**9 * d3wr**2 - 29.0 * r**7 * d2wr**2
-                + 133.0 * r**5 * dwr**2 - 64.0 * r**3 * dw**2
-            )
-        )
+    def trace(A):
+        return np.trace(A, axis1=1, axis2=2)
 
-        l1_int += simpson(l1, x=r)
-        l3_int += simpson(l3, x=r)
-        l5_int += simpson(l5, x=r)
-        l7_int += simpson(l7, x=r)
-        l9_int += simpson(l9, x=r)
+    def constant_profile(A):
+        return np.broadcast_to(A, W.shape)
+
+    H = constant_profile(H_fv)
+    W2 = mm(W, W)
+    W3 = mm(W2, W)
+    W4 = mm(W3, W)
+    H2 = mm(H, H)
+    H3 = mm(H2, H)
+    H4 = mm(H3, H)
+    H5 = mm(H4, H)
+
+    dW = np.empty_like(W)
+    for i in range(dim):
+        for j in range(dim):
+            dW[:, i, j] = deriv14(W[:, i, j], r)
+    d2W = np.empty_like(W)
+    d3W = np.empty_like(W)
+    for i in range(dim):
+        for j in range(dim):
+            d2W[:, i, j] = deriv14(dW[:, i, j], r)
+            d3W[:, i, j] = deriv14(d2W[:, i, j], r)
+
+    dW2 = mm(dW, dW)
+    d2W2 = mm(d2W, d2W)
+    d3W2 = mm(d3W, d3W)
+    dW3 = mm(dW2, dW)
+    q = r[:, None, None]
+
+    # The first term at each order is the trace of the corresponding
+    # difference of matrix powers.  Writing it this way automatically sums
+    # all non-commuting orderings under the trace and agrees with the scalar
+    # binomial polynomial in the diagonal limit.
+    l1 = 0.5 * r * trace(W)
+    l3 = -0.125 * r**3 * trace(W2 + 2.0 * mm(H, W))
+    l5 = (
+        1.0 / 16.0 * r**5 * trace(
+            mm(H + W, mm(H + W, H + W)) - H3
+        )
+        + 1.0 / 32.0 * (
+            r**5 * trace(dW2) - 4.0 * r**3 * trace(W2)
+            - 8.0 * r**3 * trace(mm(H, W))
+        )
+    )
+    l7 = (
+        -5.0 / 128.0 * r**7 * trace(
+            mm(H + W, mm(H + W, mm(H + W, H + W))) - H4
+        )
+        + 60.0 / 64.0 * r**5 * trace(mm(H2, W))
+        + 1.0 / 64.0 * (
+            20.0 * r**5 * trace(W3) - 5.0 * r**7 * trace(mm(W, dW2))
+        )
+        - 32.0 / 128.0 * r**3 * trace(mm(H, W))
+        + 1.0 / 128.0 * (
+            -r**7 * trace(d2W2) + 13.0 * r**5 * trace(dW2)
+            - 16.0 * r**3 * trace(W2)
+        )
+    )
+    l9 = (
+        7.0 / 256.0 * r**9 * trace(mm(H + W, mm(H + W, mm(H + W, mm(H + W, H + W)))) - H5)
+        - 560.0 / 256.0 * r**7 * trace(mm(H3, W))
+        + 35.0 / 256.0 * trace(
+            mm(H2, q**9 * dW2 - 24.0 * q**7 * W2)
+        )
+        + 70.0 / 256.0 * trace(
+            mm(H, q**9 * mm(dW2, W) - 8.0 * q**7 * W3)
+        )
+        + 35.0 / 256.0 * trace(q**9 * mm(dW2, W2) - 4.0 * q**7 * W4)
+        + 1008.0 / 256.0 * r**5 * trace(mm(H2, W))
+        + 7.0 / 256.0 * trace(
+            mm(H, q**9 * d2W2 - 31.0 * q**7 * dW2 + 144.0 * q**5 * W2)
+        )
+        + 7.0 / 256.0 * trace(
+            -5.0 * q**8 * dW3
+            + mm(W, q**9 * d2W2 - 31.0 * q**7 * dW2)
+            + 48.0 * q**5 * W3
+        )
+        - 64.0 / 256.0 * r**3 * trace(mm(H, W))
+        + 1.0 / 512.0 * trace(
+            q**9 * d3W2 - 29.0 * q**7 * d2W2
+            + 133.0 * q**5 * dW2 - 64.0 * q**3 * W2
+        )
+    )
+
+    l1_int = simpson(l1, x=r)
+    l3_int = simpson(l3, x=r)
+    l5_int = simpson(l5, x=r)
+    l7_int = simpson(l7, x=r)
+    l9_int = simpson(l9, x=r)
 
     ell = np.arange(l_max, dtype=float)
     j = ell + 1.0
